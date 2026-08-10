@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/eslintrc",
+  "root": true,
+  "extends": ["next/core-web-vitals", "next/typescript", "prettier"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-non-null-assertion": "error"
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    ".next/",
+    "next-env.d.ts",
+    "playwright-report/",
+    "test-results/",
+    "coverage/"
+  ]
+}

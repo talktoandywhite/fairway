@@ -1,0 +1,16 @@
+node_modules
+.next
+pnpm-lock.yaml
+playwright-report
+test-results
+coverage
+next-env.d.ts
+
+# Authored spec documents — the source of truth, not ours to reformat.
+CLAUDE.md
+README.md
+DESIGN.md
+AI_COACH.md
+BACKLOG_1.md
+# Source design tokens (root); Session 2 installs these into app/globals.css.
+/globals.css
