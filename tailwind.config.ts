@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from "tailwindcss/defaultTheme";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 /**
@@ -26,6 +27,13 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        // The three Clubhouse families, loaded via next/font in app/layout.tsx.
+        // Serif is h1/h2 only; sans is the UI default; mono carries every figure.
+        sans: ["var(--font-sans)", ...defaultTheme.fontFamily.sans],
+        serif: ["var(--font-serif)", ...defaultTheme.fontFamily.serif],
+        mono: ["var(--font-mono)", ...defaultTheme.fontFamily.mono],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -39,10 +47,20 @@ const config: Config = {
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
+          // Brass as text or a rule — the fill (`secondary`) is too light to read.
+          strong: "hsl(var(--secondary-strong))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -51,6 +69,8 @@ const config: Config = {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          // Signal Rose as text — the fill fails AA below display lightness.
+          strong: "hsl(var(--accent-strong))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -59,6 +79,20 @@ const config: Config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        // Eight categorical chart slots + recessive grid/axis. Fixed order —
+        // see DESIGN.md §3. Assign in sequence, never cycle, never reorder.
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+          5: "hsl(var(--chart-5))",
+          6: "hsl(var(--chart-6))",
+          7: "hsl(var(--chart-7))",
+          8: "hsl(var(--chart-8))",
+          grid: "hsl(var(--chart-grid))",
+          axis: "hsl(var(--chart-axis))",
         },
       },
       borderRadius: {
