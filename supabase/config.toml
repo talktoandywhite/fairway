@@ -386,7 +386,11 @@ deno_version = 2
 # secret_key = "env(SECRET_VALUE)"
 
 [analytics]
-enabled = true
+# Disabled for local dev: the Logflare analytics container (and its `vector`
+# dependency) fail their health check on this machine and are not needed for
+# migrations, type generation, or pgTAP. Re-enable if local log analytics are
+# ever required.
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
