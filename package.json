@@ -18,9 +18,13 @@
     "test:e2e": "playwright test",
     "test:contrast": "tsx scripts/check-contrast.ts",
     "test:palette": "tsx scripts/validate-palette.ts",
+    "gen:types": "supabase gen types typescript --local > types/database.ts",
+    "gen:types:linked": "supabase gen types typescript --linked > types/database.ts",
     "prepare": "husky"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.4",
+    "@supabase/supabase-js": "2.112.2",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "lucide-react": "0.577.0",
@@ -50,6 +54,7 @@
     "postcss": "8.4.31",
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.8.1",
+    "supabase": "2.113.0",
     "tailwindcss": "3.4.19",
     "tsx": "4.19.2",
     "typescript": "5.9.3",

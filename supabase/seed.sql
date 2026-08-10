@@ -1,0 +1,9 @@
+-- seed.sql
+--
+-- Placeholder. The reference-athlete seed data (five phases, the fall
+-- tournament schedule, the tour catalog, three workout blocks, the four leaks,
+-- and ~10 logged rounds with a downward trend) is authored in Session 6, once
+-- the domain tables exist.
+--
+-- This file exists now only so `supabase db reset` runs clean during the
+-- enum-foundation session. Do not add data here before the tables are created.

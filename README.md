@@ -171,14 +171,16 @@ git clone <repo> fairway && cd fairway
 pnpm install
 cp .env.example .env.local          # fill in Supabase URL + anon key
 
-supabase start                       # local Postgres + Auth on Docker
-supabase db reset                    # apply migrations + seed
+pnpm exec supabase start             # local Postgres + Auth on Docker
+pnpm exec supabase db reset          # apply migrations + seed
 pnpm gen:types                       # regenerate types/database.ts
 
 pnpm dev                             # http://localhost:3000
 ```
 
-**Requirements:** Node 20+, pnpm, Docker (for local Supabase), Supabase CLI.
+**Requirements:** Node 20+, pnpm, Docker (for local Supabase). The Supabase CLI ships as a dev
+dependency, so `pnpm exec supabase <cmd>` works after `pnpm install` — no global install needed
+(a globally installed `supabase` works too).
 
 Seed data includes the reference athlete plan — five phases, a fall tournament schedule, the tour
 catalog, three workout blocks, and a handful of logged rounds — so every screen has something real in
