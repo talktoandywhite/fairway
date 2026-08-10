@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -39,13 +34,130 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      athlete_links: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          id: string
+          linked_user_id: string
+          permission: Database["public"]["Enums"]["link_permission"]
+          relationship: Database["public"]["Enums"]["link_relationship"]
+          status: Database["public"]["Enums"]["link_status"]
+          team_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          id?: string
+          linked_user_id: string
+          permission?: Database["public"]["Enums"]["link_permission"]
+          relationship: Database["public"]["Enums"]["link_relationship"]
+          status?: Database["public"]["Enums"]["link_status"]
+          team_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          id?: string
+          linked_user_id?: string
+          permission?: Database["public"]["Enums"]["link_permission"]
+          relationship?: Database["public"]["Enums"]["link_relationship"]
+          status?: Database["public"]["Enums"]["link_status"]
+          team_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "athlete_links_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      athletes: {
+        Row: {
+          created_at: string
+          grad_year: number | null
+          handicap_index: number | null
+          home_course: string | null
+          id: string
+          level: Database["public"]["Enums"]["athlete_level"]
+          school: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          grad_year?: number | null
+          handicap_index?: number | null
+          home_course?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["athlete_level"]
+          school?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          grad_year?: number | null
+          handicap_index?: number | null
+          home_course?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["athlete_level"]
+          school?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          display_name: string
+          id: string
+          role: Database["public"]["Enums"]["profile_role"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          display_name: string
+          id: string
+          role?: Database["public"]["Enums"]["profile_role"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          display_name?: string
+          id?: string
+          role?: Database["public"]["Enums"]["profile_role"]
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      can_read_athlete: {
+        Args: { target_athlete_id: string }
+        Returns: boolean
+      }
+      can_write_athlete: {
+        Args: { target_athlete_id: string }
+        Returns: boolean
+      }
+      is_athlete_owner: {
+        Args: { target_athlete_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       athlete_level: "junior" | "high_school" | "college"
@@ -55,6 +167,7 @@ export type Database = {
       link_permission: "read" | "write"
       link_relationship: "parent" | "coach"
       link_status: "pending" | "accepted" | "declined" | "revoked" | "expired"
+      profile_role: "athlete" | "parent" | "coach"
       round_type:
         | "tournament"
         | "practice_round"
@@ -212,6 +325,7 @@ export const Constants = {
       link_permission: ["read", "write"],
       link_relationship: ["parent", "coach"],
       link_status: ["pending", "accepted", "declined", "revoked", "expired"],
+      profile_role: ["athlete", "parent", "coach"],
       round_type: [
         "tournament",
         "practice_round",
@@ -238,3 +352,4 @@ export const Constants = {
     },
   },
 } as const
+

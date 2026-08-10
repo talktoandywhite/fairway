@@ -18,6 +18,7 @@
     "test:e2e": "playwright test",
     "test:contrast": "tsx scripts/check-contrast.ts",
     "test:palette": "tsx scripts/validate-palette.ts",
+    "test:rls": "supabase test db",
     "gen:types": "supabase gen types typescript --local > types/database.ts",
     "gen:types:linked": "supabase gen types typescript --linked > types/database.ts",
     "prepare": "husky"
