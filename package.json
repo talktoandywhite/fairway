@@ -10,11 +10,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .js,.cjs,.mjs,.ts,.tsx --max-warnings 0 && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:contrast": "tsx scripts/check-contrast.ts",
+    "test:palette": "tsx scripts/validate-palette.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -24,6 +27,7 @@
     "next": "15.5.23",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "recharts": "2.15.4",
     "tailwind-merge": "2.6.1",
     "tailwindcss-animate": "1.0.7"
   },
@@ -47,6 +51,7 @@
     "prettier": "3.9.6",
     "prettier-plugin-tailwindcss": "0.8.1",
     "tailwindcss": "3.4.19",
+    "tsx": "4.19.2",
     "typescript": "5.9.3",
     "vitest": "2.1.9"
   }

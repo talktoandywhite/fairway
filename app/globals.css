@@ -2,57 +2,129 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ----------------------------------------------------------------------------
-   Session 1 placeholder tokens — a neutral base so the scaffold renders and the
-   Tailwind config (which maps colors to these variables) resolves.
+/* ============================================================================
+   Fairway — The Clubhouse theme
+   ----------------------------------------------------------------------------
+   Every color pair in this file has been checked against WCAG 2.1 AA.
+   Text pairs meet 4.5:1. Control boundaries and chart marks meet 3:1.
+   Chart slots are validated for colorblind separation in both modes.
 
-   Session 2 REPLACES this file with the validated Clubhouse theme from the
-   root `globals.css`. Do not tune these values; they are throwaway.
-   -------------------------------------------------------------------------- */
+   Do not adjust a value here without re-running the checks in DESIGN.md §9.
+   ========================================================================== */
+
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    /* --- Surfaces ------------------------------------------------------- */
+    --background: 45 33% 95%; /* #F6F4EE  Parchment */
+    --foreground: 145 40% 15%; /* #173624  Deep Pine */
+
+    --card: 0 0% 100%; /* #FFFFFF  crisp reading surface */
+    --card-foreground: 145 40% 15%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --radius: 0.5rem;
+    --popover-foreground: 145 40% 15%;
+
+    /* --- Brand ---------------------------------------------------------- */
+    /* Fairway Green — primary actions, active states, key data */
+    --primary: 145 55% 22%; /* #195733   8.6:1 with white */
+    --primary-foreground: 0 0% 100%;
+
+    /* Brass — secondary actions, achievements, premium markers */
+    --secondary: 42 60% 55%; /* #D1A847   fill only, pairs with pine */
+    --secondary-foreground: 145 40% 15%;
+    --secondary-strong: 42 60% 36%; /* #937225   brass AS TEXT (4.5:1 on card) */
+
+    /* Signal Rose — sparing use: gap warnings, exceptional results */
+    --accent: 340 70% 52%; /* #DA2F68   fill, 4.6:1 with white */
+    --accent-foreground: 0 0% 100%;
+    --accent-strong: 340 70% 49%; /* #D42560   rose AS TEXT on any surface */
+
+    /* --- Neutrals ------------------------------------------------------- */
+    --muted: 145 20% 92%; /* #E7EFEA  Soft Sage */
+    --muted-foreground: 145 20% 37%; /* #4B715B   4.7:1 on sage, 5.0:1 on parchment */
+
+    /* --- Semantic status (reserved — never used for chart series) -------- */
+    --success: 145 70% 26%; /* #14713B   6.1:1 */
+    --success-foreground: 0 0% 100%;
+    --warning: 35 85% 32%; /* #975D0C   5.4:1 */
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 72% 42%; /* #B81E1E   6.5:1 */
+    --destructive-foreground: 0 0% 100%;
+
+    /* --- Lines ---------------------------------------------------------- */
+    /* Decorative dividers. Not sufficient alone to bound a control. */
+    --border: 145 20% 78%; /* #BCD2C5 */
+    /* Control boundaries — inputs, checkboxes, outline buttons. 3:1 required. */
+    --input: 145 20% 49%; /* #649679   3.4:1 card, 3.1:1 parchment */
+    --ring: 145 55% 22%;
+
+    /* --- Chart slots ----------------------------------------------------
+       Fixed order. Assign in sequence, never cycle, never reorder.
+       Validated: worst adjacent CVD ΔE 8.3, normal-vision ΔE 18.9,
+       all 8 ≥ 3:1 on the card surface.                                    */
+    --chart-1: 144.8 64.7% 30%; /* #1B7E44  green      */
+    --chart-2: 195 75% 43.9%; /* #1C9AC4  cyan       */
+    --chart-3: 20 70% 48%; /* #D05E25  terracotta */
+    --chart-4: 285 70% 40%; /* #8A1FAD  plum       */
+    --chart-5: 75.2 64.7% 30%; /* #657E1B  olive      */
+    --chart-6: 215 70% 40%; /* #1F5AAD  slate      */
+    --chart-7: 340 70% 40%; /* #AD1F4E  rose       */
+    --chart-8: 42 75.5% 32%; /* #8F6A14  brass      */
+
+    --chart-grid: 145 20% 88%;
+    --chart-axis: 145 20% 60%;
+
+    --radius: 0.375rem;
   }
 
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
+    --background: 145 40% 8%; /* #0C1D13 */
+    --foreground: 45 30% 92%; /* #F1EEE4 */
+
+    --card: 145 35% 12%; /* #14291D */
+    --card-foreground: 45 30% 92%;
+
+    --popover: 145 35% 12%;
+    --popover-foreground: 45 30% 92%;
+
+    --primary: 145 45% 45%; /* #3FA66A   5.8:1 with dark fg */
+    --primary-foreground: 145 40% 8%;
+
+    --secondary: 42 50% 45%; /* #AC8A39 */
+    --secondary-foreground: 145 40% 8%;
+    --secondary-strong: 42 55% 62%; /* brass as text on dark surfaces */
+
+    --accent: 340 60% 63%; /* #D9688E   4.6:1 on card, 5.3:1 on bg */
+    --accent-foreground: 145 40% 8%;
+    --accent-strong: 340 60% 63%;
+
+    --muted: 145 30% 18%; /* #203C2C */
+    --muted-foreground: 145 20% 65%; /* #94B8A3   5.5:1 on muted */
+
+    --success: 145 55% 55%; /* #4DCB82   7.5:1 */
+    --success-foreground: 145 40% 8%;
+    --warning: 38 80% 58%; /* #EAAB3E   7.6:1 */
+    --warning-foreground: 145 40% 8%;
+    --destructive: 0 65% 64%; /* #DF6868   4.6:1 */
+    --destructive-foreground: 145 40% 8%;
+
+    --border: 145 30% 26%; /* #2E563F  decorative */
+    --input: 145 30% 37%; /* #427B5A  3.1:1 card, 3.5:1 bg */
+    --ring: 145 45% 45%;
+
+    /* Dark chart slots — stepped for the dark surface, not flipped.
+       Validated: worst adjacent CVD ΔE 10.6, normal-vision ΔE 15.6. */
+    --chart-1: 145 60% 36%; /* #259353 */
+    --chart-2: 195 74.8% 42%; /* #1B93BB */
+    --chart-3: 20 65% 56%; /* #D87646 */
+    --chart-4: 285 70% 56%; /* #B640DD */
+    --chart-5: 75 55% 38%; /* #7C962C */
+    --chart-6: 215 70% 50%; /* #2671D9 */
+    --chart-7: 340 70% 54%; /* #DC386E */
+    --chart-8: 42 65% 44%; /* #B98D27 */
+
+    --chart-grid: 145 30% 20%;
+    --chart-axis: 145 20% 45%;
   }
 }
 
@@ -60,7 +132,170 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
+
+  /* Display serif is for page titles only. h3 and below stay in the UI sans —
+     a serif h3 inside a dense data table hurts scanning. */
+  h1,
+  h2 {
+    @apply font-serif tracking-tight;
+  }
+
+  h3,
+  h4 {
+    @apply font-sans font-semibold tracking-tight;
+  }
+
+  /* Numbers. Tabular figures so columns align and digits don't jitter
+     when a live value updates. */
+  .data-value {
+    @apply font-mono font-medium;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Visible focus for keyboard users on every interactive element. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Minimum 44px touch targets — the parking-lot logging requirement. */
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    min-height: 2.75rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ============================================================================
+   Clubhouse patterns
+   ========================================================================== */
+
+/* --- Scorecard tables ----------------------------------------------------- */
+.scorecard-table {
+  @apply w-full border-collapse text-left text-sm;
+}
+
+.scorecard-table th {
+  @apply px-4 py-3 text-xs font-semibold uppercase tracking-wide;
+  @apply border-b border-border bg-muted text-muted-foreground;
+}
+
+.scorecard-table td {
+  @apply border-b border-border px-4 py-3;
+}
+
+.scorecard-table td.numeric {
+  @apply text-right font-mono;
+  font-variant-numeric: tabular-nums;
+}
+
+.scorecard-table tbody tr:hover {
+  @apply bg-muted/40;
+}
+
+/* --- Cards ---------------------------------------------------------------- */
+/* The inset highlight is mode-aware. A hardcoded white inset draws a bright
+   line across the top of every card in dark mode. */
+.metric-card {
+  @apply rounded-lg border border-border bg-card p-6;
+  box-shadow:
+    0 1px 2px 0 hsl(145 40% 15% / 0.06),
+    inset 0 1px 0 0 hsl(0 0% 100% / 0.7);
+}
+
+.dark .metric-card {
+  box-shadow:
+    0 1px 2px 0 hsl(0 0% 0% / 0.4),
+    inset 0 1px 0 0 hsl(0 0% 100% / 0.04);
+}
+
+/* Reserved for the single "Am I getting there?" number. One per screen. */
+.metric-card-primary {
+  @apply rounded-lg border-primary bg-primary p-6 text-primary-foreground;
+  background-image: linear-gradient(
+    to bottom right,
+    hsl(var(--primary)),
+    hsl(145 60% 18%)
+  );
+  box-shadow: 0 2px 8px 0 hsl(145 40% 15% / 0.14);
+}
+
+.dark .metric-card-primary {
+  background-image: linear-gradient(
+    to bottom right,
+    hsl(var(--primary)),
+    hsl(145 50% 32%)
+  );
+}
+
+/* --- AI coach messages ---------------------------------------------------- */
+/* Brass rule at full strength — the 55%-lightness brass reads at 1.4:1 on a
+   white card and is effectively invisible. */
+.ai-note {
+  @apply rounded-r-md bg-muted/50 py-3 pl-4 pr-4;
+  border-left: 3px solid hsl(var(--secondary-strong));
+}
+
+/* The label is text, not an icon alone, and it says AI. See AI_COACH.md §
+   Attribution — a message styled to a coach must never read as written by
+   that coach. */
+.ai-note__label {
+  @apply mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+}
+
+.ai-note__body {
+  @apply text-sm leading-relaxed text-foreground;
+}
+
+/* --- Status ------------------------------------------------------------- */
+/* Status colors always ship with an icon and a text label. Color alone never
+   carries the meaning. */
+.status-success {
+  color: hsl(var(--success));
+}
+.status-warning {
+  color: hsl(var(--warning));
+}
+.status-critical {
+  color: hsl(var(--destructive));
+}
+
+.gap-warning {
+  @apply flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium;
+  background-color: hsl(var(--warning) / 0.12);
+  color: hsl(var(--warning));
+  border: 1px solid hsl(var(--warning) / 0.3);
+}
+
+/* --- Empty states --------------------------------------------------------- */
+/* Never a blank chart. The empty state says what to do to fill it. */
+.empty-state {
+  @apply flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-input p-8 text-center;
+}
+
+.empty-state__title {
+  @apply text-sm font-semibold text-foreground;
+}
+.empty-state__hint {
+  @apply max-w-xs text-sm text-muted-foreground;
 }

@@ -193,8 +193,16 @@ it from the first run.
 | `pnpm test` | Vitest unit tests |
 | `pnpm test:e2e` | Playwright |
 | `pnpm test:rls` | pgTAP policy tests — **run before any PR touching migrations** |
+| `pnpm test:contrast` | Assert every color pair in `DESIGN.md` §2 meets its WCAG ratio, both modes |
+| `pnpm test:palette` | Run the eight chart slots through the colorblind validator, both modes |
 | `pnpm gen:types` | Regenerate DB types |
+| `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | ESLint + Prettier |
+
+`test:contrast` and `test:palette` read the live token values from `app/globals.css` and run in
+CI (`.github/workflows/ci.yml`) — editing a token to a failing value fails the build. The design
+system is rendered end-to-end at [`/styleguide`](app/(app)/styleguide/page.tsx) in both light and
+dark; it is the fastest way to catch a regression.
 
 ---
 
