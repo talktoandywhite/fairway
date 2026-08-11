@@ -16,6 +16,12 @@ import { supabaseEnv } from "./env";
  *     guardian consents. This is UX/defence-in-depth; the data itself is
  *     protected by RLS regardless (a pending account cannot write even if it
  *     reached a page it shouldn't). Belt and braces, on purpose.
+ *
+ * This middleware sits in front of every route, so it must never take the whole
+ * site down. If Supabase is unconfigured (missing env on a fresh deploy) or a
+ * transient auth call throws, we log and let the request through: public pages
+ * still render, and the pages' own server-side auth checks plus RLS remain the
+ * real gate. Failing closed here would 500 the landing page too, which is worse.
  */
 
 // Paths reachable while signed out. Everything else requires a session.
@@ -45,89 +51,113 @@ function isPublic(pathname: string): boolean {
 export async function updateSession(
   request: NextRequest,
 ): Promise<NextResponse> {
-  let supabaseResponse = NextResponse.next({ request });
-  const { url, anonKey } = supabaseEnv();
+  // Resolve config first. A missing env var is a deploy-config problem, not a
+  // reason to 500 every route — degrade to a plain pass-through so at least the
+  // public pages work while it's fixed.
+  let env: { url: string; anonKey: string };
+  try {
+    env = supabaseEnv();
+  } catch (error) {
+    console.error(
+      "[middleware] Supabase env is not configured; skipping auth gating. " +
+        "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+      error,
+    );
+    return NextResponse.next({ request });
+  }
 
-  const supabase = createServerClient<Database>(url, anonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
+  try {
+    let supabaseResponse = NextResponse.next({ request });
+
+    const supabase = createServerClient<Database>(env.url, env.anonKey, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            request.cookies.set(name, value);
+          });
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options);
+          });
+        },
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => {
-          request.cookies.set(name, value);
-        });
-        supabaseResponse = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => {
-          supabaseResponse.cookies.set(name, value, options);
-        });
-      },
-    },
-  });
-
-  // Do not run any logic between creating the client and this call. Touching
-  // the user is what triggers the token refresh; anything in between risks a
-  // hard-to-debug session that intermittently logs the user out.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-
-  // Carry the freshly-rotated auth cookies onto any redirect we issue — a bare
-  // NextResponse.redirect would drop them and desync the session.
-  const redirectTo = (
-    path: string,
-    withRedirectParam = false,
-  ): NextResponse => {
-    const target = request.nextUrl.clone();
-    target.pathname = path;
-    target.search = "";
-    if (withRedirectParam) target.searchParams.set("redirect", pathname);
-    const response = NextResponse.redirect(target);
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      response.cookies.set(cookie);
     });
-    return response;
-  };
 
-  // Signed out: allow public paths, gate everything else to sign-in.
-  if (!user) {
-    if (isPublic(pathname)) return supabaseResponse;
-    return redirectTo("/sign-in", true);
-  }
+    // Do not run any logic between creating the client and this call. Touching
+    // the user is what triggers the token refresh; anything in between risks a
+    // hard-to-debug session that intermittently logs the user out.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  // Signed in. We only need the consent status where it changes a decision:
-  // deciding where an auth page sends them, or gating a protected route.
-  const needsConsentCheck =
-    AUTH_PAGES.includes(pathname) || !isPublic(pathname);
+    const pathname = request.nextUrl.pathname;
 
-  let isPending = false;
-  if (needsConsentCheck) {
-    const { data: athlete } = await supabase
-      .from("athletes")
-      .select("consent_status")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    isPending = athlete?.consent_status === "pending_consent";
-  }
+    // Carry the freshly-rotated auth cookies onto any redirect we issue — a bare
+    // NextResponse.redirect would drop them and desync the session.
+    const redirectTo = (
+      path: string,
+      withRedirectParam = false,
+    ): NextResponse => {
+      const target = request.nextUrl.clone();
+      target.pathname = path;
+      target.search = "";
+      if (withRedirectParam) target.searchParams.set("redirect", pathname);
+      const response = NextResponse.redirect(target);
+      supabaseResponse.cookies.getAll().forEach((cookie) => {
+        response.cookies.set(cookie);
+      });
+      return response;
+    };
 
-  // A signed-in user on an auth page goes inward — to the holding screen if
-  // their account is still pending, otherwise to the dashboard.
-  if (AUTH_PAGES.includes(pathname)) {
-    return redirectTo(isPending ? "/pending-consent" : "/dashboard");
-  }
-
-  if (isPending) {
-    // Frozen account: the only in-app place is the holding screen. Public pages
-    // (home, the consent landing, the auth callback) stay reachable.
-    if (pathname !== "/pending-consent" && !isPublic(pathname)) {
-      return redirectTo("/pending-consent");
+    // Signed out: allow public paths, gate everything else to sign-in.
+    if (!user) {
+      if (isPublic(pathname)) return supabaseResponse;
+      return redirectTo("/sign-in", true);
     }
-  } else if (pathname === "/pending-consent") {
-    // Active account has nothing to wait for.
-    return redirectTo("/dashboard");
-  }
 
-  return supabaseResponse;
+    // Signed in. We only need the consent status where it changes a decision:
+    // deciding where an auth page sends them, or gating a protected route.
+    const needsConsentCheck =
+      AUTH_PAGES.includes(pathname) || !isPublic(pathname);
+
+    let isPending = false;
+    if (needsConsentCheck) {
+      const { data: athlete } = await supabase
+        .from("athletes")
+        .select("consent_status")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      isPending = athlete?.consent_status === "pending_consent";
+    }
+
+    // A signed-in user on an auth page goes inward — to the holding screen if
+    // their account is still pending, otherwise to the dashboard.
+    if (AUTH_PAGES.includes(pathname)) {
+      return redirectTo(isPending ? "/pending-consent" : "/dashboard");
+    }
+
+    if (isPending) {
+      // Frozen account: the only in-app place is the holding screen. Public
+      // pages (home, the consent landing, the auth callback) stay reachable.
+      if (pathname !== "/pending-consent" && !isPublic(pathname)) {
+        return redirectTo("/pending-consent");
+      }
+    } else if (pathname === "/pending-consent") {
+      // Active account has nothing to wait for.
+      return redirectTo("/dashboard");
+    }
+
+    return supabaseResponse;
+  } catch (error) {
+    // A transient Supabase/network failure must not 500 the whole site. Let the
+    // request through; server components and RLS still enforce access.
+    console.error(
+      "[middleware] auth/gating failed; passing the request through.",
+      error,
+    );
+    return NextResponse.next({ request });
+  }
 }
