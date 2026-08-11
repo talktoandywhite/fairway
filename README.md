@@ -206,6 +206,11 @@ CI (`.github/workflows/ci.yml`) — editing a token to a failing value fails the
 system is rendered end-to-end at [`/styleguide`](app/(app)/styleguide/page.tsx) in both light and
 dark; it is the fastest way to catch a regression.
 
+`test:e2e` builds the app against the **local** Supabase stack (not whatever `.env.local` points
+at), so start it first with `pnpm exec supabase start`. The Playwright config injects the local URL
+and anon key and runs serially — the auth flows create real users and share one auth backend, so
+parallel signups would race.
+
 ---
 
 ## Repository layout
