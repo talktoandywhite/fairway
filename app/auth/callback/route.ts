@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { ensureAthleteOnboarding } from "@/lib/auth/onboarding";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -25,6 +26,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // A just-confirmed signup now has its first session but no athlete row
+      // yet — finish onboarding here so the consent gate is armed even when
+      // email confirmation is enabled. Idempotent for anyone already onboarded
+      // (magic link, a second click), so it is safe on every callback.
+      await ensureAthleteOnboarding(supabase);
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

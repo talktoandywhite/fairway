@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { ensureAthleteOnboarding } from "@/lib/auth/onboarding";
 import { sendGuardianConsentEmail } from "@/lib/consent/email";
 import {
   guardianEmailSchema,
@@ -69,9 +70,12 @@ export async function signUpAction(
     parsed.data;
   const supabase = await createClient();
 
-  // The birth date rides along as signup metadata; the handle_new_user trigger
-  // (0002) writes it onto profiles, and the consent trigger (0004) reads it
-  // there when the athlete row is created below.
+  // The birth date and guardian email ride along as signup metadata. The
+  // handle_new_user trigger (0002) writes the birth date onto profiles; the
+  // guardian email is carried so onboarding can still create the consent request
+  // if the session only appears later, after an email confirmation. Storing it
+  // here is not a new disclosure — it is the same address that lands in
+  // guardian_consent_requests, entered by the athlete themselves.
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -80,6 +84,7 @@ export async function signUpAction(
         display_name: displayName,
         role: "athlete",
         date_of_birth: dateOfBirth,
+        guardian_email: guardianEmail ?? null,
       },
       emailRedirectTo: `${siteUrl()}/auth/callback`,
     },
@@ -90,55 +95,23 @@ export async function signUpAction(
     return { error: error.message };
   }
 
-  // With email confirmations enabled, there is no session yet — the user must
-  // confirm first. Tell them, rather than silently failing the athlete insert.
+  // Email confirmation is ON: there is no session yet. The account, its profile,
+  // and the guardian email (in metadata) all exist; onboarding is finished later
+  // from /auth/callback once the user confirms. Tell them what to do next.
   if (!data.session) {
     return {
       message:
-        "Check your email to confirm your account, then sign in to finish setup.",
+        "Check your email to confirm your account — your setup finishes automatically once you do.",
     };
   }
 
-  const userId = data.user?.id;
-  if (!userId) return { error: GENERIC_ERROR };
+  // Email confirmation is OFF: a session exists now, so finish onboarding inline.
+  // ensureAthleteOnboarding creates the athlete row and, for an under-13 account,
+  // the guardian consent request — the same step /auth/callback runs on the
+  // confirmation path.
+  await ensureAthleteOnboarding(supabase);
 
-  // Create the athlete row. The BEFORE INSERT trigger stamps consent_status
-  // from the birth date — active for 13+, pending_consent for under-13 — so we
-  // do not (and must not) set it here.
-  const { error: athleteError } = await supabase
-    .from("athletes")
-    .insert({ user_id: userId });
-
-  if (athleteError) return { error: GENERIC_ERROR };
-
-  // Under 13: record the guardian consent request and "send" the email. The
-  // account is already frozen by RLS; this is what will unfreeze it.
   if (isUnderCoppaAge(dateOfBirth)) {
-    // guardianEmail is guaranteed present here by the schema's superRefine.
-    const guardian = guardianEmail as string;
-
-    const { data: athlete } = await supabase
-      .from("athletes")
-      .select("id")
-      .eq("user_id", userId)
-      .single();
-
-    if (athlete) {
-      const { data: request } = await supabase
-        .from("guardian_consent_requests")
-        .insert({ athlete_id: athlete.id, guardian_email: guardian })
-        .select("token")
-        .single();
-
-      if (request) {
-        await sendGuardianConsentEmail({
-          to: guardian,
-          athleteName: displayName,
-          token: request.token,
-        });
-      }
-    }
-
     redirect("/pending-consent");
   }
 
