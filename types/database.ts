@@ -80,6 +80,7 @@ export type Database = {
       }
       athletes: {
         Row: {
+          consent_status: Database["public"]["Enums"]["consent_status"]
           created_at: string
           grad_year: number | null
           handicap_index: number | null
@@ -91,6 +92,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          consent_status?: Database["public"]["Enums"]["consent_status"]
           created_at?: string
           grad_year?: number | null
           handicap_index?: number | null
@@ -102,6 +104,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          consent_status?: Database["public"]["Enums"]["consent_status"]
           created_at?: string
           grad_year?: number | null
           handicap_index?: number | null
@@ -113,6 +116,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      guardian_consent_requests: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          guardian_email: string
+          id: string
+          token: string
+          updated_at: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          guardian_email: string
+          id?: string
+          token?: string
+          updated_at?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          guardian_email?: string
+          id?: string
+          token?: string
+          updated_at?: string | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guardian_consent_requests_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -158,9 +199,14 @@ export type Database = {
         Args: { target_athlete_id: string }
         Returns: boolean
       }
+      verify_guardian_consent: {
+        Args: { consent_token: string }
+        Returns: string
+      }
     }
     Enums: {
       athlete_level: "junior" | "high_school" | "college"
+      consent_status: "pending_consent" | "active"
       event_priority: "priority" | "optional" | "stretch" | "backup" | "low"
       event_status: "not_registered" | "registered" | "played" | "skipped"
       homework_status: "yes" | "partly" | "no"
@@ -319,6 +365,7 @@ export const Constants = {
   public: {
     Enums: {
       athlete_level: ["junior", "high_school", "college"],
+      consent_status: ["pending_consent", "active"],
       event_priority: ["priority", "optional", "stretch", "backup", "low"],
       event_status: ["not_registered", "registered", "played", "skipped"],
       homework_status: ["yes", "partly", "no"],

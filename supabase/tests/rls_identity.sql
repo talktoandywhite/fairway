@@ -26,14 +26,21 @@ select plan(8);
 
 -- Five users. Inserting into auth.users fires handle_new_user, which creates the
 -- matching profiles row; email is required so the display_name fallback is not
--- null.
-insert into auth.users (id, aud, role, email)
+-- null. The owner (user #1) carries a 13-or-older date_of_birth in signup
+-- metadata: since 0004_consent.sql, the BEFORE INSERT trigger on athletes
+-- stamps consent_status from the owner's date of birth, and can_write_athlete
+-- requires an 'active' account. An owner with no birth date would be frozen
+-- (unknown age -> pending_consent), which would (correctly) block the write
+-- assertions below. This test is about link authorization, not the consent
+-- gate, so its athlete is an adult, active account; the consent gate has its
+-- own proof in rls_consent.sql.
+insert into auth.users (id, aud, role, email, raw_user_meta_data)
 values
-  ('11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'owner@test.dev'),
-  ('22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'reader@test.dev'),
-  ('33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'writer@test.dev'),
-  ('44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'pending@test.dev'),
-  ('55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'stranger@test.dev');
+  ('11111111-1111-1111-1111-111111111111', 'authenticated', 'authenticated', 'owner@test.dev',    '{"date_of_birth":"1998-01-01"}'::jsonb),
+  ('22222222-2222-2222-2222-222222222222', 'authenticated', 'authenticated', 'reader@test.dev',   '{}'::jsonb),
+  ('33333333-3333-3333-3333-333333333333', 'authenticated', 'authenticated', 'writer@test.dev',   '{}'::jsonb),
+  ('44444444-4444-4444-4444-444444444444', 'authenticated', 'authenticated', 'pending@test.dev',  '{}'::jsonb),
+  ('55555555-5555-5555-5555-555555555555', 'authenticated', 'authenticated', 'stranger@test.dev', '{}'::jsonb);
 
 -- The athlete, owned by user #1.
 insert into public.athletes (id, user_id, level, handicap_index)
