@@ -117,6 +117,119 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          athlete_id: string
+          city: string | null
+          course: string | null
+          created_at: string
+          entry_fee_cents: number | null
+          holes: number
+          id: string
+          name: string
+          notes: string | null
+          plays_on: string
+          priority: Database["public"]["Enums"]["event_priority"]
+          status: Database["public"]["Enums"]["event_status"]
+          tour_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          city?: string | null
+          course?: string | null
+          created_at?: string
+          entry_fee_cents?: number | null
+          holes?: number
+          id?: string
+          name: string
+          notes?: string | null
+          plays_on: string
+          priority?: Database["public"]["Enums"]["event_priority"]
+          status?: Database["public"]["Enums"]["event_status"]
+          tour_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          city?: string | null
+          course?: string | null
+          created_at?: string
+          entry_fee_cents?: number | null
+          holes?: number
+          id?: string
+          name?: string
+          notes?: string | null
+          plays_on?: string
+          priority?: Database["public"]["Enums"]["event_priority"]
+          status?: Database["public"]["Enums"]["event_status"]
+          tour_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tours"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goals: {
+        Row: {
+          athlete_id: string
+          baseline_value: number | null
+          created_at: string
+          deadline: string | null
+          id: string
+          metric: string
+          season: string
+          target_value: number
+          updated_at: string | null
+          why: string | null
+        }
+        Insert: {
+          athlete_id: string
+          baseline_value?: number | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          metric: string
+          season: string
+          target_value: number
+          updated_at?: string | null
+          why?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          baseline_value?: number | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          metric?: string
+          season?: string
+          target_value?: number
+          updated_at?: string | null
+          why?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guardian_consent_requests: {
         Row: {
           athlete_id: string
@@ -155,6 +268,206 @@ export type Database = {
           },
         ]
       }
+      leaks: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          current_high: number
+          current_low: number
+          goal_id: string
+          id: string
+          name: string
+          strokes_saved: number
+          target_value: number
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          current_high: number
+          current_low: number
+          goal_id: string
+          id?: string
+          name: string
+          strokes_saved: number
+          target_value: number
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          current_high?: number
+          current_low?: number
+          goal_id?: string
+          id?: string
+          name?: string
+          strokes_saved?: number
+          target_value?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leaks_goal_id_athlete_id_fkey"
+            columns: ["goal_id", "athlete_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id", "athlete_id"]
+          },
+        ]
+      }
+      lessons: {
+        Row: {
+          athlete_id: string
+          coach_name: string | null
+          coach_user_id: string | null
+          cost_cents: number | null
+          created_at: string
+          drill_assigned: string | null
+          homework_done: Database["public"]["Enums"]["homework_status"] | null
+          homework_target: string | null
+          id: string
+          occurred_on: string
+          swing_key: string | null
+          updated_at: string | null
+          what_changed: string | null
+        }
+        Insert: {
+          athlete_id: string
+          coach_name?: string | null
+          coach_user_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          drill_assigned?: string | null
+          homework_done?: Database["public"]["Enums"]["homework_status"] | null
+          homework_target?: string | null
+          id?: string
+          occurred_on: string
+          swing_key?: string | null
+          updated_at?: string | null
+          what_changed?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          coach_name?: string | null
+          coach_user_id?: string | null
+          cost_cents?: number | null
+          created_at?: string
+          drill_assigned?: string | null
+          homework_done?: Database["public"]["Enums"]["homework_status"] | null
+          homework_target?: string | null
+          id?: string
+          occurred_on?: string
+          swing_key?: string | null
+          updated_at?: string | null
+          what_changed?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      phases: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          ends_on: string
+          id: string
+          main_job: string | null
+          name: string
+          score_target: number | null
+          seq: number
+          starts_on: string
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          ends_on: string
+          id?: string
+          main_job?: string | null
+          name: string
+          score_target?: number | null
+          seq: number
+          starts_on: string
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          ends_on?: string
+          id?: string
+          main_job?: string | null
+          name?: string
+          score_target?: number | null
+          seq?: number
+          starts_on?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phases_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      practice_sessions: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          drill: string | null
+          focus: string | null
+          id: string
+          minutes: number
+          notes: string | null
+          occurred_on: string
+          result: string | null
+          session_type: Database["public"]["Enums"]["session_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          drill?: string | null
+          focus?: string | null
+          id?: string
+          minutes: number
+          notes?: string | null
+          occurred_on: string
+          result?: string | null
+          session_type: Database["public"]["Enums"]["session_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          drill?: string | null
+          focus?: string | null
+          id?: string
+          minutes?: number
+          notes?: string | null
+          occurred_on?: string
+          result?: string | null
+          session_type?: Database["public"]["Enums"]["session_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_sessions_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -181,6 +494,317 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      rounds: {
+        Row: {
+          athlete_id: string
+          course: string
+          created_at: string
+          doubles_or_worse: number | null
+          event_id: string | null
+          fairways_hit: number | null
+          fairways_possible: number | null
+          greens_in_regulation: number | null
+          holes: number
+          id: string
+          notes: string | null
+          par: number
+          penalty_strokes: number | null
+          played_on: string
+          round_type: Database["public"]["Enums"]["round_type"]
+          score: number
+          three_putts: number | null
+          total_putts: number | null
+          up_and_downs: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          course: string
+          created_at?: string
+          doubles_or_worse?: number | null
+          event_id?: string | null
+          fairways_hit?: number | null
+          fairways_possible?: number | null
+          greens_in_regulation?: number | null
+          holes: number
+          id?: string
+          notes?: string | null
+          par: number
+          penalty_strokes?: number | null
+          played_on: string
+          round_type: Database["public"]["Enums"]["round_type"]
+          score: number
+          three_putts?: number | null
+          total_putts?: number | null
+          up_and_downs?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          course?: string
+          created_at?: string
+          doubles_or_worse?: number | null
+          event_id?: string | null
+          fairways_hit?: number | null
+          fairways_possible?: number | null
+          greens_in_regulation?: number | null
+          holes?: number
+          id?: string
+          notes?: string | null
+          par?: number
+          penalty_strokes?: number | null
+          played_on?: string
+          round_type?: Database["public"]["Enums"]["round_type"]
+          score?: number
+          three_putts?: number | null
+          total_putts?: number | null
+          up_and_downs?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rounds_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rounds_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tours: {
+        Row: {
+          age_max: number | null
+          age_min: number | null
+          created_at: string
+          entry_fee_cents: number | null
+          format: string | null
+          id: string
+          membership_cost_cents: number | null
+          name: string
+          org: string | null
+          region: string | null
+          season: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          age_max?: number | null
+          age_min?: number | null
+          created_at?: string
+          entry_fee_cents?: number | null
+          format?: string | null
+          id?: string
+          membership_cost_cents?: number | null
+          name: string
+          org?: string | null
+          region?: string | null
+          season?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          age_max?: number | null
+          age_min?: number | null
+          created_at?: string
+          entry_fee_cents?: number | null
+          format?: string | null
+          id?: string
+          membership_cost_cents?: number | null
+          name?: string
+          org?: string | null
+          region?: string | null
+          season?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      week_templates: {
+        Row: {
+          activity: string
+          athlete_id: string
+          created_at: string
+          day_of_week: number
+          detail: string | null
+          id: string
+          minutes: number | null
+          phase_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          activity: string
+          athlete_id: string
+          created_at?: string
+          day_of_week: number
+          detail?: string | null
+          id?: string
+          minutes?: number | null
+          phase_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          activity?: string
+          athlete_id?: string
+          created_at?: string
+          day_of_week?: number
+          detail?: string | null
+          id?: string
+          minutes?: number | null
+          phase_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "week_templates_phase_id_athlete_id_fkey"
+            columns: ["phase_id", "athlete_id"]
+            isOneToOne: false
+            referencedRelation: "phases"
+            referencedColumns: ["id", "athlete_id"]
+          },
+        ]
+      }
+      workout_blocks: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          ends_on: string
+          id: string
+          minutes_per_session: number | null
+          name: string
+          sessions_per_week: number | null
+          starts_on: string
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          ends_on: string
+          id?: string
+          minutes_per_session?: number | null
+          name: string
+          sessions_per_week?: number | null
+          starts_on: string
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          ends_on?: string
+          id?: string
+          minutes_per_session?: number | null
+          name?: string
+          sessions_per_week?: number | null
+          starts_on?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_blocks_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athletes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_exercises: {
+        Row: {
+          athlete_id: string
+          block_id: string
+          coaching_note: string | null
+          created_at: string
+          id: string
+          name: string
+          part: Database["public"]["Enums"]["workout_part"]
+          reps: string | null
+          sets: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          block_id: string
+          coaching_note?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          part: Database["public"]["Enums"]["workout_part"]
+          reps?: string | null
+          sets?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          block_id?: string
+          coaching_note?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          part?: Database["public"]["Enums"]["workout_part"]
+          reps?: string | null
+          sets?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_exercises_block_id_athlete_id_fkey"
+            columns: ["block_id", "athlete_id"]
+            isOneToOne: false
+            referencedRelation: "workout_blocks"
+            referencedColumns: ["id", "athlete_id"]
+          },
+        ]
+      }
+      workout_logs: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          exercise_id: string
+          id: string
+          load: string | null
+          performed_on: string
+          reps_done: number | null
+          sets_done: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          exercise_id: string
+          id?: string
+          load?: string | null
+          performed_on: string
+          reps_done?: number | null
+          sets_done?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          exercise_id?: string
+          id?: string
+          load?: string | null
+          performed_on?: string
+          reps_done?: number | null
+          sets_done?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_logs_exercise_id_athlete_id_fkey"
+            columns: ["exercise_id", "athlete_id"]
+            isOneToOne: false
+            referencedRelation: "workout_exercises"
+            referencedColumns: ["id", "athlete_id"]
+          },
+        ]
       }
     }
     Views: {
