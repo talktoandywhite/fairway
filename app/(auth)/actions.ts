@@ -290,11 +290,21 @@ export async function resendGuardianConsentAction(
 
   if (error || !request) return { error: GENERIC_ERROR };
 
-  await sendGuardianConsentEmail({
+  const { delivered } = await sendGuardianConsentEmail({
     to: parsed.data.guardianEmail,
     athleteName: user.email ?? "your athlete",
     token: request.token,
   });
+
+  // Be honest about delivery. The token is saved either way, but claiming "sent"
+  // when the provider rejected it would leave the athlete waiting on an email
+  // that never went out.
+  if (!delivered) {
+    return {
+      error:
+        "We couldn't send the email just now. Check the address is right and try again in a moment.",
+    };
+  }
 
   return {
     message: `We've sent a new consent link to ${parsed.data.guardianEmail}.`,
