@@ -47,16 +47,26 @@ begin
   -- handle_new_user trigger reads this metadata to build the profiles row, so the
   -- display name, role, and date of birth are set exactly the way real signup
   -- would set them. DOB 2010-09-15 makes the athlete 15 -> consent_status active.
+  -- The token columns (confirmation_token, recovery_token, email_change, …) are
+  -- written as '' rather than left NULL on purpose: GoTrue's Go scanner reads
+  -- them into non-nullable strings and errors ("converting NULL to string is
+  -- unsupported") on a manually-seeded row that omits them, which silently breaks
+  -- password sign-in for this account. Real signups never hit this because GoTrue
+  -- writes '' itself; a hand-seeded user has to match that.
   insert into auth.users (
     instance_id, id, aud, role, email,
     encrypted_password, email_confirmed_at,
     created_at, updated_at,
+    confirmation_token, recovery_token,
+    email_change, email_change_token_new, email_change_token_current,
     raw_app_meta_data, raw_user_meta_data
   )
   values (
     '00000000-0000-0000-0000-000000000000', v_user, 'authenticated', 'authenticated', v_email,
     extensions.crypt('fairway-dev', extensions.gen_salt('bf')), now(),
     now(), now(),
+    '', '',
+    '', '', '',
     '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object(
       'display_name', 'Sam Rivera',
