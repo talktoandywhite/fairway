@@ -15,6 +15,14 @@ export {
   trendline,
 } from "./rounds";
 
+/**
+ * The qualifying-round predicate is exported so a caller that must render the
+ * SAME population the headline metrics use — the dashboard's trend chart — draws
+ * from the engine's own definition rather than re-implementing "18-hole
+ * tournament", which would be a correctness hazard the moment the rule changes.
+ */
+export { isQualifyingRound, qualifyingRounds } from "./helpers";
+
 export { gapDays, longestGap, seasonFeeTotal } from "./events";
 
 export { minutesByType, practiceRatio } from "./practice";

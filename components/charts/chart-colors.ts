@@ -29,6 +29,14 @@ export const CHART_AXIS = "hsl(var(--chart-axis))";
 export const CHART_TICK = "hsl(var(--muted-foreground))";
 
 /**
+ * Annotation / reference lines — a goal or target drawn across the plot. Brass
+ * at full strength (`--secondary-strong`, the same rule the AI note uses), so it
+ * reads as an annotation and is never confused with a data series. A reference
+ * line is not a series, so it does not take a chart slot.
+ */
+export const CHART_REFERENCE = "hsl(var(--secondary-strong))";
+
+/**
  * The validated triad for all-pairs forms — scatter, bubble, small-multiples —
  * where any two marks can sit side by side. The eight-slot order does not clear
  * that harder test (green and terracotta collapse under protanopia), so those
