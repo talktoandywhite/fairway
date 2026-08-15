@@ -1,5 +1,6 @@
 import { GapWarning } from "@/components/dashboard/gap-warning";
 import { HeadlineMetrics } from "@/components/dashboard/headline-metrics";
+import { HomeworkCallout } from "@/components/lessons/homework-callout";
 import {
   LeakBreakdown,
   type LeakView,
@@ -18,11 +19,13 @@ import {
   resolveLeakField,
   todayISO,
 } from "@/lib/dashboard/present";
+import { homeworkPrompt } from "@/lib/lessons/present";
 import { formatPlayedOn } from "@/lib/rounds/format";
 import {
   averagePerRound,
   lastNAverage,
   longestGap,
+  outstandingHomework,
   qualifyingRounds,
   scoringAverage,
   strokesToGoal,
@@ -59,10 +62,8 @@ export default async function DashboardPage() {
     );
   }
 
-  const { goal, leaks, phases, events, rounds } = await getDashboardData(
-    supabase,
-    athleteId,
-  );
+  const { goal, leaks, phases, events, rounds, lessons } =
+    await getDashboardData(supabase, athleteId);
   const today = todayISO();
 
   // Headline numbers — all from the engine.
@@ -73,6 +74,13 @@ export default async function DashboardPage() {
     goalTarget !== null ? strokesToGoal(average, goalTarget) : null;
   const trend = describeTrend(trendline(rounds));
   const longestGapDays = longestGap(events);
+
+  // Homework the coach set that isn't finished. The engine decides WHICH lesson
+  // that is (only the most recent one can carry it — the next lesson supersedes
+  // the last); `homeworkPrompt` decides how it reads. Null means nothing is owed,
+  // and the card simply doesn't render — a conditional callout, not a widget with
+  // an empty state, exactly like the gap warning.
+  const outstanding = outstandingHomework(lessons);
 
   // The trend chart draws the SAME qualifying population as the average
   // (engine-owned predicate), oldest-first — the query returns rounds ascending.
@@ -136,6 +144,11 @@ export default async function DashboardPage() {
       <ScoreTrendCard points={trendPoints} goalTarget={goalTarget} />
 
       <LeakBreakdown leaks={leakViews} />
+
+      {/* Where the strokes go, then what your coach told you to do about it. */}
+      {outstanding ? (
+        <HomeworkCallout prompt={homeworkPrompt(outstanding)} />
+      ) : null}
 
       <GapWarning longestGapDays={longestGapDays} />
 

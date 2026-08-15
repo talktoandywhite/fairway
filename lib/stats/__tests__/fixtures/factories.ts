@@ -1,4 +1,9 @@
-import type { EventRow, PracticeSegmentRow, RoundRow } from "@/lib/stats/types";
+import type {
+  EventRow,
+  LessonRow,
+  PracticeSegmentRow,
+  RoundRow,
+} from "@/lib/stats/types";
 
 /**
  * Row factories for the stats tests. Each fills a complete, valid Row from the
@@ -56,6 +61,31 @@ export function makeEvent(partial: Partial<EventRow> = {}): EventRow {
     status: "played",
     notes: null,
     created_at: "2025-08-09T00:00:00Z",
+    updated_at: null,
+    ...partial,
+  };
+}
+
+/**
+ * A lesson. `created_at` tracks `occurred_on` by default so the newest-first sort
+ * in `lib/stats/lessons` behaves the way a real log does; a test about same-day
+ * ordering overrides it explicitly.
+ */
+export function makeLesson(partial: Partial<LessonRow> = {}): LessonRow {
+  const occurredOn = partial.occurred_on ?? "2026-03-12";
+  return {
+    id: nextId(),
+    athlete_id: ATHLETE_ID,
+    coach_user_id: null,
+    coach_name: "Coach Diaz",
+    occurred_on: occurredOn,
+    swing_key: null,
+    drill_assigned: null,
+    homework_target: null,
+    homework_done: null,
+    cost_cents: null,
+    what_changed: null,
+    created_at: `${occurredOn}T00:00:00Z`,
     updated_at: null,
     ...partial,
   };

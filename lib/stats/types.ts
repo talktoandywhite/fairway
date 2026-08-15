@@ -23,6 +23,13 @@ export type PracticeSegmentRow =
 export type PracticeSessionRow =
   Database["public"]["Tables"]["practice_sessions"]["Row"];
 
+/**
+ * A lesson with a coach. Athlete-authored in the MVP; the engine reads it for the
+ * lesson spend and for the one piece of a lesson that outlives the lesson — the
+ * homework (see `lib/stats/lessons.ts`).
+ */
+export type LessonRow = Database["public"]["Tables"]["lessons"]["Row"];
+
 export type SessionType = Database["public"]["Enums"]["session_type"];
 
 /**

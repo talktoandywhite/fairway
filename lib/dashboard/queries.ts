@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/types/database";
-import type { EventRow, RoundRow } from "@/lib/stats";
+import type { EventRow, LessonRow, RoundRow } from "@/lib/stats";
 
 type GoalRow = Database["public"]["Tables"]["goals"]["Row"];
 type LeakRow = Database["public"]["Tables"]["leaks"]["Row"];
@@ -26,6 +26,12 @@ export interface DashboardData {
   events: EventRow[];
   /** Every round (all types); the engine filters to the qualifying set. */
   rounds: RoundRow[];
+  /**
+   * Every lesson, newest first — the order `outstandingHomework` reads. Only the
+   * most recent one can carry outstanding homework, but the whole set is fetched
+   * because "most recent" is the engine's call to make, not the query's.
+   */
+  lessons: LessonRow[];
 }
 
 export async function getDashboardData(
@@ -44,7 +50,7 @@ export async function getDashboardData(
     .maybeSingle();
   if (goalError) throw goalError;
 
-  const [leaksResult, phasesResult, eventsResult, roundsResult] =
+  const [leaksResult, phasesResult, eventsResult, roundsResult, lessonsResult] =
     await Promise.all([
       goal
         ? supabase
@@ -69,12 +75,19 @@ export async function getDashboardData(
         .select("*")
         .eq("athlete_id", athleteId)
         .order("played_on", { ascending: true }),
+      supabase
+        .from("lessons")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .order("occurred_on", { ascending: false })
+        .order("created_at", { ascending: false }),
     ]);
 
   if (leaksResult.error) throw leaksResult.error;
   if (phasesResult.error) throw phasesResult.error;
   if (eventsResult.error) throw eventsResult.error;
   if (roundsResult.error) throw roundsResult.error;
+  if (lessonsResult.error) throw lessonsResult.error;
 
   return {
     goal: goal ?? null,
@@ -82,5 +95,6 @@ export async function getDashboardData(
     phases: phasesResult.data ?? [],
     events: eventsResult.data ?? [],
     rounds: roundsResult.data ?? [],
+    lessons: lessonsResult.data ?? [],
   };
 }

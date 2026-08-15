@@ -10,6 +10,10 @@
 -- closely: it holds every minute the Practice Log measures, and it reaches its
 -- athlete_id through a composite FK rather than a direct column the caller sets.
 --
+-- lessons gets the fullest treatment (29-32): Session 12 turned it into a
+-- writable surface, so insert, update, and delete are each proved denied to a
+-- stranger, with the owner's own update as the positive control.
+--
 -- Run with `pnpm test:rls` (supabase test db) against the local stack.
 --
 -- Method mirrors rls_identity.sql / rls_consent.sql: seed fixtures as the
@@ -24,8 +28,8 @@ create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
 -- 12 owner-can-read + 12 stranger-denied + 1 tours-shared-read
--- + 3 stranger-write-denied = 28.
-select plan(28);
+-- + 3 stranger-write-denied + 4 lessons-write (Session 12) = 32.
+select plan(32);
 
 -- --------------------------------------------------------------------------
 -- Fixtures (seeded as superuser; RLS does not apply, triggers do)
@@ -192,6 +196,56 @@ select throws_ok(
   '42501',
   'new row violates row-level security policy for table "practice_segments"',
   'unlinked user cannot add a segment to someone else''s practice session'
+);
+
+-- --------------------------------------------------------------------------
+-- 29-32. lessons became a WRITABLE surface in Session 12 (the Lesson Log's
+--        create/update/delete Server Actions), so the whole write path gets
+--        proved here rather than only the read.
+--
+--        A rejected INSERT raises 42501 because it fails the WITH CHECK. A
+--        rejected UPDATE or DELETE does not raise — the USING clause filters the
+--        row out of the statement entirely, so the statement succeeds having
+--        touched nothing. Those two are therefore run bare as the stranger and
+--        then checked FROM THE OWNER'S SEAT: the assertion is that the owner's
+--        data is untouched, which is the property that actually matters. The
+--        owner's own UPDATE landing is the positive control that keeps the two
+--        checks above from passing for the wrong reason.
+-- --------------------------------------------------------------------------
+
+select throws_ok(
+  $$ insert into public.lessons (athlete_id, coach_name, occurred_on)
+     values ('a71e7e00-0000-4000-a000-00000000000a', 'Coach Stranger', '2026-01-01') $$,
+  '42501',
+  'new row violates row-level security policy for table "lessons"',
+  'unlinked user cannot insert a lesson for someone else''s athlete'
+);
+
+-- Not tests themselves: the two statements whose (lack of) effect is asserted
+-- below. Both succeed and both touch nothing.
+update public.lessons set swing_key = 'injected by a stranger';
+delete from public.lessons;
+
+select pg_temp.act_as('c0de0001-0000-4000-a000-000000000001');
+
+select is(
+  (select swing_key from public.lessons),
+  null::text,
+  'a stranger''s UPDATE never reached the owner''s lesson'
+);
+
+select is(
+  (select count(*) from public.lessons)::bigint,
+  1::bigint,
+  'a stranger''s DELETE never reached the owner''s lesson'
+);
+
+update public.lessons set homework_done = 'yes';
+
+select is(
+  (select homework_done from public.lessons)::text,
+  'yes',
+  'the owner CAN update their own lesson (the gate is a gate)'
 );
 
 -- --------------------------------------------------------------------------
