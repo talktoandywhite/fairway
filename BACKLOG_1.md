@@ -851,6 +851,107 @@ read is not something to build here.
 
 ---
 
+# Proposed — video and media on lessons and practice
+
+**Raised by the owner during Session 12. Needs a session number when V1 is next re-planned; it
+belongs after Session 15 and before Session 18. The athlete-uploaded half depends only on 12; letting
+a coach or parent upload depends on 16.**
+
+**Goal:** a coach, parent, or athlete attaches the swing-analysis clip their coach exported — from
+Swing Coach, V1 Golf, Hudl Technique — to the lesson or practice session it belongs to, and everyone
+with access can watch it.
+
+This conflicts with CLAUDE.md as written ("Photos/video: not in MVP") and is therefore flagged rather
+than assumed. It does not conflict with the rule attached to it: **private by default, no shareable
+public URL**, which everything below is built to honour.
+
+**Settled by the owner:**
+
+**Fairway stores and plays clips. Fairway does not draw on them.** Coaches already own telestration
+tools they know, and the export from those tools is an ordinary video file. Building frame-by-frame
+markup and voice-over inside Fairway is months of work competing with software that is better at it,
+and it is explicitly not in scope. If this comes back up, the answer is still no.
+
+**Uploads are exports, not camera-roll footage, and that is what makes this affordable.** Analysis
+apps exist to produce something a coach can send to a student, so they render H.264/AAC in MP4 — the
+one combination every browser plays. Raw iPhone capture (HEVC in a `.mov`) is the case that would
+force a transcoding vendor, and it is not the case here. **So: no Mux, no Cloudflare Stream, no
+ffmpeg.** The clip never leaves Supabase, which makes every compliance answer below dramatically
+easier — a deletion guarantee becomes a `delete` call rather than a contract negotiation.
+
+**`.mov` and `.mp4` are containers, not codecs, so the fallback is the design, not the validation.**
+Do not police formats at upload. A `<video>` element raises `MEDIA_ERR_SRC_NOT_SUPPORTED` when a
+browser cannot decode a source; catch it and render "This clip's format isn't supported in your
+browser — download it to watch" beside the signed URL. Nothing is rejected, nothing is lost, nobody
+hits a dead end. **If that fallback fires often in real use, that is the evidence to fund a
+transcoder — measure before spending.**
+
+**One table, not two, and shaped now for the third parent it will need.**
+
+```
+athlete_media
+  athlete_id           not null
+  lesson_id            nullable
+  practice_session_id  nullable
+  check (num_nonnulls(lesson_id, practice_session_id) = 1)
+```
+
+Both FKs composite with `athlete_id`, the same guard `practice_segments` uses, so a clip can never
+straddle two athletes. RLS is the usual one-liner pair over `can_read_athlete` / `can_write_athlete`,
+which already means "the athlete plus anyone with an accepted link" — so "playback for every user
+type" needs no new authorization work at all. Adding `round_id` later is a nullable column and a
+widened check; the athlete will want it ("the swing that put me in the trees on 14"), and this is the
+same seam left open by `athlete_links.team_id`.
+
+**Media attaches to a practice SESSION, not a segment.** Asking which discipline a clip belongs to is
+friction the 60-second rule does not allow, and a clip is about the day.
+
+**`uploaded_by_user_id` is a product field, not just an audit column.** Three people can add a clip;
+the UI says "added by Coach Diaz."
+
+**Uploads go browser → storage directly.** Vercel caps a serverless request body at 4.5MB and a
+clip is 20–150MB, so the file must never pass through the Next server. Signed upload URLs from a
+Server Action; the action records the row on confirmation. Note `supabase/config.toml` currently sets
+`file_size_limit = "50MiB"`, which is too tight — raise it, and cap duration in the UI.
+
+**Storage objects are not reachable from a Postgres trigger.** Deleting a lesson cascades the rows and
+strands the objects. The orphan sweep needs its own path (Edge Function or scheduled job) and it is
+part of this ticket, not a follow-up — an un-deletable video of a minor is the worst possible bug
+here.
+
+**The dropzone is not a control.** A real `<input type="file">` behind it, or the whole thing fails
+the keyboard and labelling lines in the Definition of Done.
+
+**Still open — these are the owner's calls, and the migration should not be written until they are
+answered:**
+
+- **Does the existing consent gate cover video, or does video need its own explicit consent?** Video
+  of a child's face and body is unambiguously personal information under COPPA. The current flow
+  gates account usability from date of birth; it does not name media. Assume it needs its own
+  surface until decided otherwise.
+- **Do parents get upload rights at all?** CLAUDE.md says a parent "typically does not edit
+  swing/practice content." A parent filming from behind the range is a real and sympathetic case, and
+  it is also a second adult adding video of a minor. Decide deliberately rather than inheriting it
+  from `can_write_athlete`.
+- **Per-athlete storage quota, and what happens at the ceiling.** Unbounded video storage is an
+  unbounded bill and an unbounded abuse surface.
+- **Retention.** How long does a clip from a lesson two seasons ago live? "Forever" is a decision, not
+  a default.
+
+**Also:** strip EXIF/geolocation on ingest, and no filename from the uploader ever reaches a public
+path. A clip is never an input to `buildAthleteContext()` — AI_COACH.md forbids free text authored by
+another user, and a video is the same problem with a bigger surface.
+
+**Rough size:** ~1.5–2 sessions for the athlete-uploaded foundation across lessons and practice.
+Coach and parent upload then rides on Sessions 16/18 at close to no extra cost, because the
+authorization already exists and only the invitation flow is missing.
+
+**Files:** `supabase/migrations/00NN_athlete_media.sql` (table, RLS, storage policies),
+`lib/schemas/media.ts`, `lib/media/*`, `components/media/*`, `app/(app)/lessons/**`,
+`app/(app)/practice/**`, `supabase/tests/rls_media.sql`
+
+---
+
 # Discovered work
 
 Found mid-session and deliberately not fixed in flight (see hygiene rules below).
