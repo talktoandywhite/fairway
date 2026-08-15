@@ -796,27 +796,52 @@ targets in MINUTES, by discipline, which is the unit the Practice Log and the ra
 speak. A coach assigns "this week: 90 min short game, 60 min putting, 45 min full swing" and the
 athlete sees it against what they actually logged.
 
-`practice_assignments` (athlete_id, assigned_by, a date or week window, an optional note) with a
-child `practice_assignment_targets` (session_type, target_minutes) — the same parent/child shape,
-and the same rule, as `practice_segments`: minutes per discipline, never one total to be divided.
+`practice_assignments` (athlete_id, assigned_by, a date or week window, an optional note,
+`status assignment_status`) with a child `practice_assignment_targets` (session_type,
+target_minutes) — the same parent/child shape, and the same rule, as `practice_segments`: minutes per
+discipline, never one total to be divided.
 
-**Three decisions to make before building it, all of them consequential:**
+Note the write asymmetry, which the RLS policies have to encode: the COACH owns the targets (the
+athlete must not be able to lower a target to meet it), the ATHLETE owns the status (a coach must not
+be able to mark someone's work complete or missed on their behalf). `can_write_athlete` is not
+sufficient on its own for either — this is the first table in the schema where "who may write" splits
+by column, so expect the policies to be longer than the one-liners everywhere else, and test both
+directions in pgTAP.
 
-1. **Derive "met" from the log, or let the athlete tick a box?** Strong recommendation: DERIVE it.
-   The app already knows the athlete's real minutes by discipline; a checkbox is a second source of
-   truth that can disagree with the log, and the one that disagrees is the one a coach will read. The
-   athlete completes an assignment by doing the work and logging it — the action they already take.
-   A separate "acknowledge" flag is fine and useful; a separate *minutes* claim is not.
-2. **Compliance display is the biggest risk in this feature.** CLAUDE.md is explicit: encouraging,
-   never nagging, no red badges for a missed session, and no gamification that pushes toward
-   logging-as-performance rather than honest data. An assignment tracker is exactly the mechanic that
-   makes an athlete log what their coach wanted instead of what happened — and every number on the
-   Practice screen, including the ratio check, degrades the moment that starts. "You logged 60 of the
-   90 minutes asked" is honest. A red incomplete badge is not.
-3. **Whose opinion wins on screen?** The athlete would now have two: the coach's assignment and the
-   healthy-mix band. They can legitimately disagree. A real coach who knows this athlete should
-   outrank a generic band — so lead with the assignment and keep the band as context, not the
-   reverse.
+**Settled by the owner:**
+
+**The athlete declares the outcome; the log supplies the minutes. These are different fields, and
+neither is a competing claim about the same number.** The athlete records one of
+`complete | partial | exceeded | missed` (a new `assignment_status` enum) against each assignment —
+a judgment the log cannot make on its own, since only the athlete knows whether 40 logged minutes was
+the session cut short or the session done properly. The minutes shown beside it come from their
+logged segments as normal. A coach reading it sees both: what was asked, what was declared, what was
+logged.
+
+**`missed` is a first-class, athlete-recorded outcome, and the design depends on it being one.**
+This is what keeps the feature on the right side of the CLAUDE.md tone rule. The risk with a
+compliance tracker is that it pressures an athlete into logging what the coach asked for instead of
+what happened, which would quietly rot every number on the Practice screen including the ratio check.
+That pressure comes from a miss being a silent failure state the athlete is caught in. Here it is
+something they report, so reporting it honestly IS operating responsibly — which is the thing the
+record is meant to measure. Build it that way: logging a miss must be as easy and as unpunished as
+logging a completion, and it never earns a red badge or a broken streak.
+
+**The record is a litmus test for all three parties, not surveillance of one.** Athlete, coach and
+parent read the same view. Athlete-logged sessions above and beyond the assigned ones count and are
+visible as such — an athlete without a coach uses the Practice Log exactly as it works today, and the
+assignment layer only ever adds to it.
+
+**Corollary that follows from the above, and is not optional:** the athlete sees precisely what their
+coach and parent see, with no hidden diligence score and no derived "reliability" figure computed
+behind their back. This is a product for minors; a record about someone that they cannot themselves
+read is not something to build here.
+
+**Still open:**
+
+- **Whose opinion leads on screen?** The athlete would now have two: the coach's assignment and the
+  healthy-mix band. They can legitimately disagree. A real coach who knows this athlete should
+  outrank a generic band — so lead with the assignment and keep the band as context, not the reverse.
 
 **Also:** an assignment note is free text authored by another user. It must never reach
 `buildAthleteContext()` — AI_COACH.md already forbids that, and this is precisely the tempting case.
