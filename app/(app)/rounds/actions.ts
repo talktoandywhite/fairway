@@ -78,15 +78,51 @@ export async function createRoundAction(
   const athleteId = await getActiveAthleteId(supabase);
   if (!athleteId) return { error: NO_ATHLETE_ERROR };
 
+  // Optional link to a scheduled event (the Session 10 "mark played → log the
+  // round" handoff). The event id rides in as a hidden field; we only honour it
+  // when it's a real event this athlete owns, so a forged id links nothing rather
+  // than pointing a round at someone else's event. RLS already gates the read.
+  const eventId = await resolveOwnedEventId(supabase, athleteId, formData);
+
   // athlete_id is stamped from the server-resolved owner, never from the client.
-  const insert: RoundInsert = { athlete_id: athleteId, ...parsed.data };
+  const insert: RoundInsert = {
+    athlete_id: athleteId,
+    ...parsed.data,
+    ...(eventId ? { event_id: eventId } : {}),
+  };
   const { error } = await supabase.from("rounds").insert(insert);
   if (error) return { error: GENERIC_ERROR };
 
-  // The list and the dashboard both read this athlete's rounds; refresh both.
+  // The list, the dashboard, and the linked event's schedule surfaces all read
+  // this athlete's rounds; refresh them.
   revalidatePath("/rounds");
   revalidatePath("/dashboard");
+  if (eventId) {
+    revalidatePath("/schedule");
+    revalidatePath(`/schedule/${eventId}`);
+  }
   redirect("/rounds");
+}
+
+/**
+ * Validate an optional `event_id` from the form and confirm it belongs to this
+ * athlete before a round is linked to it. Returns the id when it checks out, else
+ * null — a missing, malformed, or non-owned id simply produces an unlinked round.
+ */
+async function resolveOwnedEventId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  athleteId: string,
+  formData: FormData,
+): Promise<string | null> {
+  const parsed = z.string().uuid().safeParse(formData.get("event_id"));
+  if (!parsed.success) return null;
+  const { data } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", parsed.data)
+    .eq("athlete_id", athleteId)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 // --------------------------------------------------------------------------
