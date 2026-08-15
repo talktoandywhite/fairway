@@ -783,6 +783,22 @@ notifications, home-screen presence, and camera capture for swing video are the 
 
 ---
 
+# Discovered work
+
+Found mid-session and deliberately not fixed in flight (see hygiene rules below).
+
+- **The round form's "Add detail" disclosure never collapses.** `components/rounds/round-form.tsx`
+  puts `hidden={!detailExpanded}` and `className="flex …"` on the same element. Tailwind's preflight
+  `[hidden]{display:none}` and the `.flex` utility have equal specificity and utilities are emitted
+  last, so `flex` wins and the panel is always open — the eight leak fields are on screen for a
+  ten-year-old logging a score, which is exactly what the disclosure exists to prevent. Found in
+  Session 11, which hit the same trap; the fix there was to move the layout to an inner wrapper so
+  the element carrying `hidden` has no display utility of its own. Apply the same fix, and add the
+  `toBeHidden()` assertion to `e2e/rounds.spec.ts` that `e2e/practice.spec.ts` now carries.
+  Small — fold into Session 15 (MVP hardening) or take it standalone.
+
+---
+
 # Backlog hygiene
 
 - Add discovered work here rather than expanding a session in flight.

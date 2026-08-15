@@ -11,11 +11,11 @@ import { SignOutButton } from "./_components/sign-out-button";
  * reachable, and a way to the screens that exist. The pending-consent holding
  * screen also lives in this group and relies on the same sign-out.
  *
- * Dashboard, Rounds, and Schedule are linked today — the live screens; each later
- * session adds its own link as its screen lands. The nav scrolls horizontally
- * when the links outgrow the width (three of them already brush the 375px edge,
- * and more sessions are coming), while the wordmark and sign-out stay pinned so
- * the way out is always reachable.
+ * Dashboard, Rounds, Schedule, and Practice are linked today — the live screens;
+ * each later session adds its own link as its screen lands. The nav scrolls
+ * horizontally when the links outgrow the width (four of them overflow at 375px
+ * already, and more sessions are coming), while the wordmark and sign-out stay
+ * pinned so the way out is always reachable.
  */
 export default function AppLayout({
   children,
@@ -51,6 +51,12 @@ export default function AppLayout({
               className="shrink-0 text-muted-foreground hover:text-foreground"
             >
               Schedule
+            </Link>
+            <Link
+              href="/practice"
+              className="shrink-0 text-muted-foreground hover:text-foreground"
+            >
+              Practice
             </Link>
           </nav>
         </div>
