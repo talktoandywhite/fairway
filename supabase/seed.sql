@@ -266,28 +266,51 @@ begin
   -- The workbook's insight: a high shooter should spend most of their time on
   -- short game and putting, not full swing. The mix below is deliberately
   -- short-game / putting heavy so the Session 11 ratio check has something true
-  -- to affirm. gym sessions mirror the workout logs below so the minutes rollup
-  -- stays honest.
+  -- to affirm. `exercise` segments mirror the workout logs below so the minutes
+  -- rollup stays honest.
+  --
+  -- A session is a DAY'S BLOCK and its segments are the disciplines inside it
+  -- (migration 0010). Most days here are a single discipline, and two — 04-20 and
+  -- 04-27 — are the real shape of an in-season day: strength work followed by
+  -- time on the green. Fifteen sessions, seventeen segments, 985 minutes.
 
-  insert into public.practice_sessions (athlete_id, occurred_on, session_type, minutes, focus, drill, result)
-  values
-    (v_athlete, '2026-04-06', 'putting',          45, 'Speed control',        'Lag ladder to 20/30/40 ft', '3 of 9 inside the leather'),
-    (v_athlete, '2026-04-07', 'short_game',       60, 'Standard chip',        'Up-and-down ladder, 10 balls', '6 of 10 up and down'),
-    (v_athlete, '2026-04-08', 'range_wedges',     45, '50-80 yd wedges',      'Distance ladder to numbers', null),
-    (v_athlete, '2026-04-09', 'putting',          30, 'Short putts',          '3-6 ft gate drill', 'Made 18 of 20 from 4 ft'),
-    (v_athlete, '2026-04-10', 'short_game',       60, 'Bunkers',              'Greenside sand, varied lies', null),
-    (v_athlete, '2026-04-13', 'range_full_swing', 45, 'Tempo',                'Half-speed 7-iron flush', null),
-    (v_athlete, '2026-04-14', 'putting',          45, 'Lag + short combo',    'Around-the-clock 6 ft', null),
-    (v_athlete, '2026-04-15', 'short_game',       75, 'Pitching',             'Trajectory windows, 30-50 yd', 'Good contact all session'),
-    (v_athlete, '2026-04-16', 'on_course',       120, 'Scoring shots',        'Play 9, leak scorecard only', '2 penalties, 1 three-putt'),
-    (v_athlete, '2026-04-18', 'range_wedges',     45, 'Half wedges',          'Clock system 30/60/90', null),
-    (v_athlete, '2026-04-20', 'gym',              50, 'Strength — Block C',   'In-season maintenance session', null),
-    (v_athlete, '2026-04-21', 'putting',          30, 'Speed',                'Distance-only, no hole', null),
-    (v_athlete, '2026-04-22', 'short_game',       60, 'Chip + run',           'Bump-and-run to back pins', null),
-    (v_athlete, '2026-04-23', 'range_full_swing', 60, 'Driver',               'Fairway finder, 3/4 driver', 'Started the tee-ball routine'),
-    (v_athlete, '2026-04-27', 'gym',              50, 'Strength — Block C',   'In-season maintenance session', null),
-    (v_athlete, '2026-04-28', 'short_game',       45, 'Green reading',        'AimPoint express, 10 putts', null),
-    (v_athlete, '2026-04-30', 'on_course',       120, 'Course management',    'Play 18, punch out every time', 'Zero hero shots. Zero.');
+  -- Each session's segments are attached by date, so the block below reads the
+  -- way a training week actually reads.
+  insert into public.practice_sessions (athlete_id, occurred_on)
+  select v_athlete, d
+  from (values
+    ('2026-04-06'::date), ('2026-04-07'), ('2026-04-08'), ('2026-04-09'),
+    ('2026-04-10'), ('2026-04-13'), ('2026-04-14'), ('2026-04-15'),
+    ('2026-04-16'), ('2026-04-18'), ('2026-04-20'), ('2026-04-22'),
+    ('2026-04-23'), ('2026-04-27'), ('2026-04-30')
+  ) as days(d);
+
+  insert into public.practice_segments
+    (practice_session_id, athlete_id, session_type, minutes, focus, drill, result)
+  select s.id, v_athlete, seg.session_type, seg.minutes, seg.focus, seg.drill, seg.result
+  from (values
+    ('2026-04-06'::date, 'putting'::public.session_type,          45, 'Speed control',        'Lag ladder to 20/30/40 ft', '3 of 9 inside the leather'),
+    ('2026-04-07', 'short_game',       60, 'Standard chip',        'Up-and-down ladder, 10 balls', '6 of 10 up and down'),
+    ('2026-04-08', 'range_wedges',     45, '50-80 yd wedges',      'Distance ladder to numbers', null),
+    ('2026-04-09', 'putting',          30, 'Short putts',          '3-6 ft gate drill', 'Made 18 of 20 from 4 ft'),
+    ('2026-04-10', 'short_game',       60, 'Bunkers',              'Greenside sand, varied lies', null),
+    ('2026-04-13', 'range_full_swing', 45, 'Tempo',                'Half-speed 7-iron flush', null),
+    ('2026-04-14', 'putting',          45, 'Lag + short combo',    'Around-the-clock 6 ft', null),
+    ('2026-04-15', 'short_game',       75, 'Pitching',             'Trajectory windows, 30-50 yd', 'Good contact all session'),
+    ('2026-04-16', 'on_course',       120, 'Scoring shots',        'Play 9, leak scorecard only', '2 penalties, 1 three-putt'),
+    ('2026-04-18', 'range_wedges',     45, 'Half wedges',          'Clock system 30/60/90', null),
+    -- A two-part day: lift, then putt.
+    ('2026-04-20', 'exercise',         50, 'Strength — Block C',   'In-season maintenance session', null),
+    ('2026-04-20', 'putting',          30, 'Speed',                'Distance-only, no hole', null),
+    ('2026-04-22', 'short_game',       60, 'Chip + run',           'Bump-and-run to back pins', null),
+    ('2026-04-23', 'range_full_swing', 60, 'Driver',               'Fairway finder, 3/4 driver', 'Started the tee-ball routine'),
+    -- And another.
+    ('2026-04-27', 'exercise',         50, 'Strength — Block C',   'In-season maintenance session', null),
+    ('2026-04-27', 'short_game',       45, 'Green reading',        'AimPoint express, 10 putts', null),
+    ('2026-04-30', 'on_course',       120, 'Course management',    'Play 18, punch out every time', 'Zero hero shots. Zero.')
+  ) as seg(occurred_on, session_type, minutes, focus, drill, result)
+  join public.practice_sessions s
+    on s.athlete_id = v_athlete and s.occurred_on = seg.occurred_on;
 
   -- ========================================================================
   -- Lessons
@@ -344,7 +367,7 @@ begin
     (v_blockC, v_athlete, 'core',     'Side plank',                2, '2 x 30s each',  'Stack the hips; breathe.'),
     (v_blockC, v_athlete, 'mobility', 'Thoracic openers',          2, '2 x 8 each',    'Protect the rotation for the swing.');
 
-  -- A few logged in-season sessions (Block C), matching the gym practice
+  -- A few logged in-season sessions (Block C), matching the exercise practice
   -- sessions above by date so the two views agree.
   insert into public.workout_logs (athlete_id, exercise_id, performed_on, sets_done, reps_done, load)
   values

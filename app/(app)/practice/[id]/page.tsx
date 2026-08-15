@@ -9,17 +9,14 @@ import { getActiveAthleteId } from "@/lib/auth/athlete";
 import { formatMinutes } from "@/lib/practice/format";
 import { getPracticeSession } from "@/lib/practice/queries";
 import { formatPlayedOn } from "@/lib/rounds/format";
-import {
-  SESSION_TYPE_HINTS,
-  SESSION_TYPE_LABELS,
-} from "@/lib/schemas/practice";
+import { SESSION_TYPE_LABELS } from "@/lib/schemas/practice";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * A single practice session — what was worked on, for how long, and whatever the
- * athlete wrote down about it. Read-only detail plus edit and delete; nothing is
- * derived here, since the rollup and the mix are properties of a window, not of
- * one session.
+ * A single practice session — the day's block, broken into the disciplines it
+ * covered, each with its own minutes and whatever the athlete wrote against it.
+ * Nothing is derived here: the rollup and the mix are properties of a window, not
+ * of one session.
  */
 export default async function PracticeDetailPage({
   params,
@@ -34,8 +31,11 @@ export default async function PracticeDetailPage({
   const session = await getPracticeSession(supabase, athleteId, id);
   if (!session) notFound();
 
-  const typeLabel = SESSION_TYPE_LABELS[session.session_type];
-  const label = `${formatMinutes(session.minutes)} of ${typeLabel.toLowerCase()} on ${formatPlayedOn(session.occurred_on)}`;
+  const minutes = session.segments.reduce((sum, s) => sum + s.minutes, 0);
+  const title = session.segments
+    .map((s) => SESSION_TYPE_LABELS[s.session_type])
+    .join(" · ");
+  const label = `${formatMinutes(minutes)} on ${formatPlayedOn(session.occurred_on)}`;
 
   return (
     <section className="mx-auto flex w-full max-w-2xl flex-col gap-6">
@@ -49,12 +49,13 @@ export default async function PracticeDetailPage({
         </Link>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {typeLabel}
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             <p className="text-sm text-muted-foreground">
               {formatPlayedOn(session.occurred_on)} ·{" "}
-              {SESSION_TYPE_HINTS[session.session_type].toLowerCase()}
+              <DataValue>{formatMinutes(minutes)}</DataValue>
+              {session.segments.length > 1
+                ? ` across ${session.segments.length} parts`
+                : ""}
             </p>
           </div>
           <div className="flex items-center gap-1">
@@ -70,26 +71,37 @@ export default async function PracticeDetailPage({
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <DetailCell
-          label="Time"
-          value={formatMinutes(session.minutes)}
-          numeric
-        />
-        <DetailCell label="Focus" value={session.focus ?? "—"} />
-        <DetailCell label="Drill" value={session.drill ?? "—"} />
-      </dl>
-
-      {session.result ? (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Result
-          </h2>
-          <p className="rounded-lg border border-border bg-card px-4 py-3 text-sm leading-relaxed text-foreground">
-            {session.result}
-          </p>
-        </div>
-      ) : null}
+      {/* One block per discipline. Detail sits with the discipline it describes. */}
+      <ul className="flex flex-col gap-3">
+        {session.segments.map((segment) => (
+          <li
+            key={segment.id}
+            className="flex flex-col gap-2 rounded-lg border border-border bg-card px-4 py-3"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <h2 className="font-medium text-foreground">
+                {SESSION_TYPE_LABELS[segment.session_type]}
+              </h2>
+              <DataValue className="text-lg text-foreground">
+                {formatMinutes(segment.minutes)}
+              </DataValue>
+            </div>
+            {segment.focus || segment.drill || segment.result ? (
+              <dl className="flex flex-col gap-1 text-sm">
+                {segment.focus ? (
+                  <Detail label="Focus" value={segment.focus} />
+                ) : null}
+                {segment.drill ? (
+                  <Detail label="Drill" value={segment.drill} />
+                ) : null}
+                {segment.result ? (
+                  <Detail label="Result" value={segment.result} />
+                ) : null}
+              </dl>
+            ) : null}
+          </li>
+        ))}
+      </ul>
 
       {session.notes ? (
         <div className="flex flex-col gap-2">
@@ -105,28 +117,12 @@ export default async function PracticeDetailPage({
   );
 }
 
-/** One label + value in the detail grid. */
-function DetailCell({
-  label,
-  value,
-  numeric = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  numeric?: boolean;
-}) {
+/** One labelled line of a segment's detail. */
+function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg border border-border bg-card px-3 py-3">
-      <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd>
-        {numeric ? (
-          <DataValue className="text-lg text-foreground">{value}</DataValue>
-        ) : (
-          <span className="text-sm text-foreground">{value}</span>
-        )}
-      </dd>
+    <div className="flex flex-wrap gap-x-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-foreground">{value}</dd>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 **A development platform for competitive golfers, from junior tours through college.**
 
-Fairway turns the work of getting better at golf — the schedule, the practice, the lessons, the gym,
+Fairway turns the work of getting better at golf — the schedule, the practice, the lessons, the exercise,
 and above all the honest scorekeeping — into one place that answers a single question:
 
 > Am I getting there?
@@ -46,7 +46,7 @@ tabs of the original workbook are the eight domains of the app.
 | **Score Log** | Rounds | Fast mobile entry; the stats block becomes the dashboard |
 | **Weekly Schedule** | Training Plan | Phase-aware weekly template that generates the actual week and checks off against the Practice Log |
 | **Workout Plan** | Strength Program | Blocks with exercise library, set/rep logging, and block transitions on schedule |
-| **Practice Log** | Practice | Minutes-by-type tracking against a healthy ratio target |
+| **Practice Log** | Practice | A day's session covers several disciplines; minutes-by-type tracked against a healthy ratio target |
 | **Lesson Log** | Lessons | Shared with the coach, who can write the entry and assign the drill directly |
 
 ---
@@ -130,7 +130,8 @@ rounds                athlete_id, event_id?, played_on, course, round_type, hole
                       penalty_strokes, three_putts, total_putts, fairways_hit, fairways_possible,
                       greens_in_regulation, up_and_downs, doubles_or_worse, notes
 
-practice_sessions     athlete_id, occurred_on, session_type, minutes, focus, drill, result, notes
+practice_sessions     athlete_id, occurred_on, notes
+practice_segments     practice_session_id, athlete_id, session_type, minutes, focus, drill, result
 lessons               athlete_id, coach_user_id?, coach_name, occurred_on, swing_key,
                       drill_assigned, homework_target, homework_done, cost_cents, what_changed
 
@@ -146,7 +147,7 @@ week_templates        phase_id, day_of_week, activity, minutes, detail
 - `round_type` — `tournament`, `practice_round`, `simulated_tournament`, `nine_hole`
 - `event_status` — `not_registered`, `registered`, `played`, `skipped`
 - `event_priority` — `priority`, `optional`, `stretch`, `backup`, `low`
-- `session_type` — `range_full_swing`, `range_wedges`, `short_game`, `putting`, `on_course`, `gym`, `lesson`
+- `session_type` — `range_full_swing`, `range_wedges`, `short_game`, `putting`, `on_course`, `exercise`, `lesson`
 - `homework_status` — `yes`, `partly`, `no`
 - `link_relationship` — `parent`, `coach`
 - `link_permission` — `read`, `write`
@@ -160,7 +161,7 @@ week_templates        phase_id, day_of_week, activity, minutes, detail
 | Strokes to goal | Scoring average − goal target | Negative means goal met |
 | Longest gap | Max days between consecutive planned events | Warn above 60 |
 | Season fee total | Sum of entry fees for planned events | Excludes `skipped` |
-| Minutes by type | Sum of practice minutes grouped by `session_type` | Compared to a healthy ratio for the athlete's level |
+| Minutes by type | Sum of practice **segment** minutes grouped by `session_type` | Compared to a healthy ratio for the athlete's level |
 
 ---
 

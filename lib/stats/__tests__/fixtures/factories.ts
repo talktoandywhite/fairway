@@ -1,4 +1,4 @@
-import type { EventRow, PracticeSessionRow, RoundRow } from "@/lib/stats/types";
+import type { EventRow, PracticeSegmentRow, RoundRow } from "@/lib/stats/types";
 
 /**
  * Row factories for the stats tests. Each fills a complete, valid Row from the
@@ -7,6 +7,7 @@ import type { EventRow, PracticeSessionRow, RoundRow } from "@/lib/stats/types";
  */
 
 const ATHLETE_ID = "0e57a1e7-0000-4000-a000-000000000001";
+const SESSION_ID = "5e551040-0000-4000-a000-000000000001";
 
 let sequence = 0;
 function nextId(): string {
@@ -60,19 +61,18 @@ export function makeEvent(partial: Partial<EventRow> = {}): EventRow {
   };
 }
 
-export function makeSession(
-  partial: Partial<PracticeSessionRow> = {},
-): PracticeSessionRow {
+export function makeSegment(
+  partial: Partial<PracticeSegmentRow> = {},
+): PracticeSegmentRow {
   return {
     id: nextId(),
     athlete_id: ATHLETE_ID,
-    occurred_on: "2026-04-06",
+    practice_session_id: SESSION_ID,
     session_type: "putting",
     minutes: 0,
     focus: null,
     drill: null,
     result: null,
-    notes: null,
     created_at: "2026-04-06T00:00:00Z",
     updated_at: null,
     ...partial,

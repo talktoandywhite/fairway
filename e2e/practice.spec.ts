@@ -7,15 +7,19 @@ import { LOCAL_SUPABASE_ANON_KEY, LOCAL_SUPABASE_URL } from "./local-supabase";
  * The Practice Log, proven end-to-end through the real app against the local
  * Supabase stack. What Session 11's Definition of Done insists on:
  *
- *   1. The seeded practice block renders, and the rollup matches the engine
- *      EXACTLY — 985 minutes over 17 sessions, short game 5h, on course 4h.
- *   2. The ratio check reads the seeded mix against the band for the athlete's
- *      real scoring average (107.25 → the 100s band) and AFFIRMS it, because the
- *      seeded mix is genuinely short-game heavy. It names its basis out loud.
- *   3. The window selector actually narrows the data, and an empty window says so
- *      rather than showing a chart of zeros.
- *   4. Create / edit / delete work through Zod-validated Server Actions, with RLS
- *      the backstop, and minutes round-trip as a positive integer.
+ *   1. The seeded practice block renders and the rollup matches the engine
+ *      EXACTLY — 985 minutes over 15 sessions and 17 segments.
+ *   2. A session covers MANY disciplines, each with its own minutes. This is the
+ *      shape the whole feature turns on: a 2.5-hour afternoon is one session with
+ *      four parts, and each part's minutes are a number the athlete typed, never
+ *      a share of a total the app divided up.
+ *   3. The ratio check reads the seeded mix against the band for the athlete's
+ *      real scoring average (107.25 → the 100s band) and AFFIRMS it. It names its
+ *      basis out loud.
+ *   4. The window selector narrows the data, and an empty window says so rather
+ *      than drawing a chart of zeros.
+ *   5. Create / edit / delete work through Zod-validated Server Actions with RLS
+ *      the backstop, and minutes round-trip as positive integers.
  *
  * These sign in as the seeded reference athlete (Sam Rivera). The suite runs
  * serially against one shared auth backend (see playwright.config.ts).
@@ -51,11 +55,11 @@ async function apiClient() {
 /**
  * Sweep any throwaway rows this suite creates, so a failed assertion mid-test can
  * never leave a stray session behind to skew the seeded rollup the other tests
- * assert exactly. The focus text is the one the create test uses.
+ * assert exactly. Segments cascade with their session.
  */
 test.afterEach(async () => {
   const api = await apiClient();
-  await api.from("practice_sessions").delete().ilike("focus", "E2E fixture%");
+  await api.from("practice_sessions").delete().ilike("notes", "E2E fixture%");
 });
 
 test("renders the seeded rollup, and the numbers match the engine", async ({
@@ -69,9 +73,9 @@ test("renders the seeded rollup, and the numbers match the engine", async ({
   ).toBeVisible();
 
   const rollup = page.getByRole("region", { name: "Minutes by type" });
-  // 985 minutes over the 17 seeded sessions — the engine's minutesByType total.
+  // 985 minutes across 15 day-blocks (17 segments — two days are multi-part).
   await expect(rollup.getByText("16h 25m")).toBeVisible();
-  await expect(rollup.getByText("over 17 sessions")).toBeVisible();
+  await expect(rollup.getByText("over 15 sessions")).toBeVisible();
 
   // The table view carries the same figures as the chart (DESIGN.md §3).
   await rollup.getByText("View as table").click();
@@ -81,9 +85,39 @@ test("renders the seeded rollup, and the numbers match the engine", async ({
   await expect(rollup.getByRole("row", { name: /On course/ })).toContainText(
     "4h",
   ); // 240 minutes
-  await expect(rollup.getByRole("row", { name: /Gym/ })).toContainText(
+  // `gym` was renamed to `exercise` in migration 0010 — athlete-facing word.
+  await expect(rollup.getByRole("row", { name: /Exercise/ })).toContainText(
     "1h 40m",
   );
+});
+
+test("a seeded multi-discipline day reads as one session with its parts", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto(ALL_TIME);
+
+  // 2026-04-20 is exercise 50m + putting 30m: one row, not two.
+  const row = page
+    .getByRole("listitem")
+    .filter({ hasText: "Putting · Exercise" })
+    .first();
+  await expect(row).toBeVisible();
+  await expect(row).toContainText("1h 20m"); // 80 minutes, summed
+  await expect(row).toContainText("2 parts");
+
+  // The detail page breaks the block back into its disciplines, each with its
+  // own minutes and its own detail.
+  await row.getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/practice\/[0-9a-f-]+$/);
+  await expect(
+    page.getByRole("heading", { name: "Putting · Exercise", level: 1 }),
+  ).toBeVisible();
+  await expect(page.getByText("across 2 parts")).toBeVisible();
+  await expect(page.getByText("50m", { exact: true })).toBeVisible();
+  await expect(page.getByText("30m", { exact: true })).toBeVisible();
+  await expect(page.getByText("Strength — Block C")).toBeVisible();
+  await expect(page.getByText("Distance-only, no hole")).toBeVisible();
 });
 
 test("the ratio check reads the seeded mix against the scoring average, and affirms it", async ({
@@ -94,7 +128,7 @@ test("the ratio check reads the seeded mix against the scoring average, and affi
 
   const mix = page.getByRole("region", { name: "Your practice mix" });
 
-  // Shares over the MIX (885 min — gym and lesson are excluded on purpose):
+  // Shares over the MIX (885 min — exercise and lesson are excluded on purpose):
   // scoring 540 = 61%, full swing 105 = 12%, on course 240 = 27%.
   await expect(mix.getByText("61%", { exact: true })).toBeVisible();
   await expect(mix.getByText("12%", { exact: true })).toBeVisible();
@@ -107,7 +141,7 @@ test("the ratio check reads the seeded mix against the scoring average, and affi
   await expect(mix.getByText("107.25")).toBeVisible();
   await expect(mix.getByText("In range")).toHaveCount(3);
 
-  // The excluded minutes are stated, not silently dropped: gym is 100 minutes.
+  // The excluded minutes are stated, not silently dropped: exercise is 100.
   await expect(mix.getByText(/1h 40m/)).toBeVisible();
   await expect(mix.getByText(/not in this mix/i)).toBeVisible();
 });
@@ -122,9 +156,7 @@ test("the window selector narrows the data, and an empty window says so", async 
   await page.goto("/practice");
   await expect(
     page.getByText(/Nothing logged in the last 30 days/i),
-  ).toHaveCount(
-    2, // the rollup's empty state and the list's
-  );
+  ).toHaveCount(2); // the rollup's empty state and the list's
   await expect(
     page.getByRole("region", { name: "Minutes by type" }),
   ).toHaveCount(0);
@@ -143,64 +175,129 @@ test("the window selector narrows the data, and an empty window says so", async 
   );
 });
 
-test("log, edit, and delete a session; minutes round-trip as a positive integer", async ({
+test("logs a four-discipline day as ONE session, each part keeping its own minutes", async ({
   page,
 }) => {
   const api = await apiClient();
-  const focus = `E2E fixture ${Date.now()}`;
+  const notes = `E2E fixture ${Date.now()}`;
 
   await signIn(page);
+  await page.goto("/practice/new");
 
-  // --- Log ----------------------------------------------------------------
+  // Nothing is pre-selected: a multi-select shouldn't claim what you did.
+  await expect(page.getByText("How long on each?")).toHaveCount(0);
+
+  // The day the user described: exercise, swing, short game, putting.
+  for (const discipline of [
+    "Exercise",
+    "Full swing",
+    "Short game",
+    "Putting",
+  ]) {
+    await page.getByRole("button", { name: discipline, exact: true }).click();
+  }
+
+  const minutes = {
+    Exercise: "45",
+    "Full swing": "30",
+    "Short game": "45",
+    Putting: "30",
+  };
+  for (const [discipline, value] of Object.entries(minutes)) {
+    await page.getByLabel(discipline, { exact: true }).fill(value);
+  }
+
+  // The running total is the athlete's check that the block adds up.
+  await expect(page.getByText("2h 30m")).toBeVisible();
+
+  await page.getByRole("button", { name: /add detail/i }).click();
+  await page.getByLabel("Notes").fill(notes);
+  await page.getByRole("button", { name: /log session/i }).click();
+  await expect(page).toHaveURL(/\/practice$/);
+
+  const { data: session } = await api
+    .from("practice_sessions")
+    .select("id, occurred_on, notes")
+    .eq("notes", notes)
+    .single();
+  const sessionId = session?.id as string;
+
+  try {
+    // One session, four segments, and every minute is a number that was typed —
+    // not 150 divided four ways.
+    const { data: segments } = await api
+      .from("practice_segments")
+      .select("session_type, minutes")
+      .eq("practice_session_id", sessionId)
+      .order("minutes", { ascending: false });
+
+    expect(segments).toHaveLength(4);
+    expect(
+      Object.fromEntries(
+        (segments ?? []).map((s) => [s.session_type, s.minutes]),
+      ),
+    ).toEqual({
+      exercise: 45,
+      range_full_swing: 30,
+      short_game: 45,
+      putting: 30,
+    });
+
+    // And it reads back as one row in the log, not four.
+    await page.goto("/practice");
+    const row = page
+      .getByRole("listitem")
+      .filter({ hasText: "Full swing · Short game · Putting · Exercise" })
+      .first();
+    await expect(row).toContainText("2h 30m");
+    await expect(row).toContainText("4 parts");
+  } finally {
+    await api.from("practice_sessions").delete().eq("id", sessionId);
+  }
+});
+
+test("editing replaces the session's disciplines, and delete takes the segments with it", async ({
+  page,
+}) => {
+  const api = await apiClient();
+  const notes = `E2E fixture ${Date.now()}`;
+
+  await signIn(page);
   await page.goto("/practice/new");
   await page.getByRole("button", { name: "Putting", exact: true }).click();
-  await page.getByRole("button", { name: "45m", exact: true }).click();
-
-  // The disclosure genuinely collapses. Worth asserting: a `hidden` attribute on
-  // an element that also carries a `flex` utility is a silent no-op, because the
-  // two have equal specificity and utilities are emitted last (see the note in
-  // practice-form.tsx). Without this the "60-second core" would not be a core.
-  await expect(page.getByLabel("Focus")).toBeHidden();
+  await page.getByLabel("Putting", { exact: true }).fill("45");
   await page.getByRole("button", { name: /add detail/i }).click();
-  await expect(page.getByLabel("Focus")).toBeVisible();
-
-  await page.getByLabel("Focus").fill(focus);
-  await page.getByLabel("Drill").fill("Gate drill from 4 ft");
+  await page.getByLabel("Notes").fill(notes);
   await page.getByRole("button", { name: /log session/i }).click();
-
   await expect(page).toHaveURL(/\/practice$/);
 
   const { data: created } = await api
     .from("practice_sessions")
-    .select("*")
-    .eq("focus", focus)
+    .select("id")
+    .eq("notes", notes)
     .single();
-  expect(created?.minutes).toBe(45);
-  expect(created?.session_type).toBe("putting");
-  expect(created?.drill).toBe("Gate drill from 4 ft");
-  // An untouched optional field is null, never an empty string.
-  expect(created?.result).toBeNull();
-
   const sessionId = created?.id as string;
 
   try {
-    // --- Edit -------------------------------------------------------------
+    // --- Edit: drop putting, add short game, and re-time it ----------------
     await page.goto(`/practice/${sessionId}/edit`);
-    await page.getByLabel("How long?").fill("75");
-    await page.getByLabel("Result").fill("Made 18 of 20 from 4 ft");
+    await page.getByRole("button", { name: "Putting", exact: true }).click();
+    await page.getByRole("button", { name: "Short game", exact: true }).click();
+    await page.getByLabel("Short game", { exact: true }).fill("75");
     await page.getByRole("button", { name: /save changes/i }).click();
 
     await expect(page).toHaveURL(new RegExp(`/practice/${sessionId}$`));
-    // Exact: the delete dialog's confirmation prose names the same duration.
-    await expect(page.getByText("1h 15m", { exact: true })).toBeVisible();
-    await expect(page.getByText("Made 18 of 20 from 4 ft")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Short game", level: 1 }),
+    ).toBeVisible();
+    await expect(page.getByText("1h 15m").first()).toBeVisible();
 
-    const { data: edited } = await api
-      .from("practice_sessions")
-      .select("minutes, result")
-      .eq("id", sessionId)
-      .single();
-    expect(edited?.minutes).toBe(75);
+    // The replacement is real: the old discipline is gone, not merely hidden.
+    const { data: segments } = await api
+      .from("practice_segments")
+      .select("session_type, minutes")
+      .eq("practice_session_id", sessionId);
+    expect(segments).toEqual([{ session_type: "short_game", minutes: 75 }]);
 
     // --- Delete with confirmation ------------------------------------------
     await page
@@ -212,30 +309,46 @@ test("log, edit, and delete a session; minutes round-trip as a positive integer"
       .click();
     await expect(page).toHaveURL(/\/practice$/);
 
-    const { data: afterDelete } = await api
+    // The session is gone and its segments cascaded with it — no orphans.
+    const { data: afterSessions } = await api
       .from("practice_sessions")
       .select("id")
       .eq("id", sessionId);
-    expect(afterDelete).toEqual([]);
+    expect(afterSessions).toEqual([]);
+    const { data: afterSegments } = await api
+      .from("practice_segments")
+      .select("id")
+      .eq("practice_session_id", sessionId);
+    expect(afterSegments).toEqual([]);
   } finally {
     await api.from("practice_sessions").delete().eq("id", sessionId);
   }
 });
 
-test("refuses a future date and a zero-minute session", async ({ page }) => {
+test("refuses a session with no disciplines, a future date, and a zero-minute part", async ({
+  page,
+}) => {
   await signIn(page);
   await page.goto("/practice/new");
 
-  // Practice is done, then logged — a future date is not a thing.
-  await page.getByLabel("Date").fill("2099-01-01");
-  await page.getByLabel("How long?").fill("45");
+  // Nothing selected: there is no session to log.
   await page.getByRole("button", { name: /log session/i }).click();
-  await expect(page.getByText("That date is in the future")).toBeVisible();
+  await expect(
+    page.getByText("Pick at least one thing you worked on"),
+  ).toBeVisible();
   await expect(page).toHaveURL(/\/practice\/new$/);
 
-  // A zero-minute session would dilute the rollup with a row that means nothing.
+  await page.getByRole("button", { name: "Putting", exact: true }).click();
+
+  // Practice is done, then logged — a future date is not a thing.
+  await page.getByLabel("Date").fill("2099-01-01");
+  await page.getByLabel("Putting", { exact: true }).fill("45");
+  await page.getByRole("button", { name: /log session/i }).click();
+  await expect(page.getByText("That date is in the future")).toBeVisible();
+
+  // A zero-minute part is a discipline you didn't actually work on.
   await page.getByLabel("Date").fill("2026-04-06");
-  await page.getByLabel("How long?").fill("0");
+  await page.getByLabel("Putting", { exact: true }).fill("0");
   await page.getByRole("button", { name: /log session/i }).click();
   await expect(page.getByText("Enter at least 1 minute")).toBeVisible();
   await expect(page).toHaveURL(/\/practice\/new$/);

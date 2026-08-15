@@ -11,7 +11,7 @@ import {
   strokesToGoal,
   trendline,
 } from "@/lib/stats";
-import { seedEvents, seedPracticeSessions, seedRounds } from "./fixtures/seed";
+import { seedEvents, seedPracticeSegments, seedRounds } from "./fixtures/seed";
 import { present } from "./present";
 
 /**
@@ -76,20 +76,20 @@ describe("stats engine vs. the reference workbook", () => {
   });
 
   it("practice minutes total 985, weighted to short game and putting", () => {
-    const minutes = minutesByType(seedPracticeSessions);
+    const minutes = minutesByType(seedPracticeSegments);
     const total = Object.values(minutes).reduce((a, b) => a + b, 0);
     expect(total).toBe(985);
     expect(minutes.short_game).toBe(300);
     expect(minutes.putting).toBe(150);
     expect(minutes.on_course).toBe(240);
-    expect(minutes.gym).toBe(100);
+    expect(minutes.exercise).toBe(100);
     expect(minutes.range_full_swing).toBe(105);
     expect(minutes.range_wedges).toBe(90);
     expect(minutes.lesson).toBe(0);
   });
 
   it("practice ratio is short-game-heavy and sums to 1", () => {
-    const ratio = present(practiceRatio(seedPracticeSessions));
+    const ratio = present(practiceRatio(seedPracticeSegments));
     const sum = Object.values(ratio).reduce((a, b) => a + b, 0);
     expect(sum).toBeCloseTo(1, 10);
     expect(ratio.short_game).toBeCloseTo(300 / 985, 10);

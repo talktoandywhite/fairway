@@ -107,22 +107,24 @@ export interface Rollup {
   /** Only the types with time on them, biggest first. What the chart draws. */
   loggedRows: RollupRow[];
   totalMinutes: number;
-  sessionCount: number;
+  /** How many SEGMENTS these minutes came from. Not the session count: one
+   * session can cover four disciplines, and this counts the disciplines. */
+  segmentCount: number;
 }
 
 /**
- * The minutes-by-type rollup over an already-windowed set of sessions. The
+ * The minutes-by-type rollup over an already-windowed set of SEGMENTS. The
  * totals come from the engine's `minutesByType`; what this adds is the share,
  * the fixed chart slot, and the two orderings the UI needs (enum order for a
  * stable table, minutes-descending for the chart).
  */
 export function buildRollup(
-  sessions: { session_type: SessionType; minutes: number }[],
+  segments: { session_type: SessionType; minutes: number }[],
 ): Rollup {
   // `minutesByType` takes the full row type; it only reads these two fields, and
   // widening here keeps callers from having to fabricate whole rows in tests.
   const totals = minutesByType(
-    sessions as Parameters<typeof minutesByType>[0],
+    segments as Parameters<typeof minutesByType>[0],
   ) as SessionTypeTotals;
 
   const totalMinutes = SESSION_TYPES.reduce((sum, t) => sum + totals[t], 0);
@@ -141,7 +143,7 @@ export function buildRollup(
       .filter((r) => r.minutes > 0)
       .sort((a, b) => b.minutes - a.minutes),
     totalMinutes,
-    sessionCount: sessions.length,
+    segmentCount: segments.length,
   };
 }
 
@@ -155,12 +157,13 @@ export function buildRollup(
  * or 18% — but the split between "the scoring game", "the full swing", and
  * "actually playing" is exactly the split the workbook cared about.
  *
- * `gym` and `lesson` are deliberately OUTSIDE the mix. Strength work is a
- * different budget entirely (and is written here by the Session 13 strength log,
- * not by a practice choice), and lesson time is the coach's plan, not the
- * athlete's allocation. Counting either would make a well-programmed athlete look
- * like they neglect their short game. Their minutes still appear in the rollup —
- * they are just not part of the ratio's denominator, and the UI says so.
+ * `exercise` and `lesson` are deliberately OUTSIDE the mix. Strength and
+ * conditioning is a different budget entirely (and is written here by the Session
+ * 13 strength log, not by a practice choice), and lesson time is the coach's
+ * plan, not the athlete's allocation. Counting either would make a
+ * well-programmed athlete look like they neglect their short game. Their minutes
+ * still appear in the rollup — they are just not part of the ratio's denominator,
+ * and the UI says so.
  */
 export const RATIO_BUCKETS = [
   {
@@ -321,7 +324,7 @@ export interface RatioCheck {
   buckets: RatioBucketResult[];
   /** Minutes across the three buckets — the denominator of every share above. */
   mixMinutes: number;
-  /** Logged minutes deliberately outside the mix (gym, lesson). */
+  /** Logged minutes deliberately outside the mix (exercise, lesson). */
   outsideMinutes: number;
   /** False when there is too little logged in this window to read a mix. */
   hasEnoughData: boolean;
@@ -338,7 +341,7 @@ export interface RatioCheck {
 export const MIN_MIX_MINUTES = 180;
 
 /**
- * The ratio check. Takes an already-windowed set of sessions plus the two facts
+ * The ratio check. Takes an already-windowed set of segments plus the two facts
  * that pick the band, and returns the mix, the target, and the sentence.
  *
  * Returns `null` when the window holds no mix minutes at all — there is nothing
@@ -346,11 +349,11 @@ export const MIN_MIX_MINUTES = 180;
  * a chart of zeros (DESIGN.md §5).
  */
 export function ratioCheck(
-  sessions: { session_type: SessionType; minutes: number }[],
+  segments: { session_type: SessionType; minutes: number }[],
   opts: { scoringAverage: number | null; level: AthleteLevel },
 ): RatioCheck | null {
   const totals = minutesByType(
-    sessions as Parameters<typeof minutesByType>[0],
+    segments as Parameters<typeof minutesByType>[0],
   ) as SessionTypeTotals;
 
   const measured = RATIO_BUCKETS.map((bucket) => ({

@@ -1,10 +1,14 @@
 -- rls_domain.sql
 -- pgTAP proof that every athlete-owned domain table shipped in Session 6
--- (0005-0009) enforces the CLAUDE.md rule: a row is visible only to the athlete
+-- (0005-0010) enforces the CLAUDE.md rule: a row is visible only to the athlete
 -- and to users with an accepted link, and to nobody else. Here we prove the
--- "nobody else" half against an UNLINKED user, on every one of the eleven
--- athlete-owned tables, and confirm the twelfth table (tours) is the deliberate
--- shared-catalog exception — readable by any authenticated user.
+-- "nobody else" half against an UNLINKED user, on every one of the twelve
+-- athlete-owned tables, and confirm the thirteenth table (tours) is the
+-- deliberate shared-catalog exception — readable by any authenticated user.
+--
+-- practice_segments (0010) is the newest of them and the one most worth reading
+-- closely: it holds every minute the Practice Log measures, and it reaches its
+-- athlete_id through a composite FK rather than a direct column the caller sets.
 --
 -- Run with `pnpm test:rls` (supabase test db) against the local stack.
 --
@@ -19,9 +23,9 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 
--- 11 owner-can-read + 11 stranger-denied + 1 tours-shared-read
--- + 2 stranger-write-denied = 25.
-select plan(25);
+-- 12 owner-can-read + 12 stranger-denied + 1 tours-shared-read
+-- + 3 stranger-write-denied = 28.
+select plan(28);
 
 -- --------------------------------------------------------------------------
 -- Fixtures (seeded as superuser; RLS does not apply, triggers do)
@@ -68,8 +72,13 @@ insert into public.rounds (athlete_id, event_id, played_on, course, round_type, 
 values ('a71e7e00-0000-4000-a000-00000000000a', 'e0e00000-0000-4000-a000-000000000001',
         '2025-09-13', 'Bridlewood', 'tournament', 18, 72, 108);
 
-insert into public.practice_sessions (athlete_id, occurred_on, session_type, minutes)
-values ('a71e7e00-0000-4000-a000-00000000000a', '2025-09-14', 'putting', 45);
+insert into public.practice_sessions (id, athlete_id, occurred_on)
+values ('50e50000-0000-4000-a000-000000000001',
+        'a71e7e00-0000-4000-a000-00000000000a', '2025-09-14');
+
+insert into public.practice_segments (practice_session_id, athlete_id, session_type, minutes)
+values ('50e50000-0000-4000-a000-000000000001',
+        'a71e7e00-0000-4000-a000-00000000000a', 'putting', 45);
 
 insert into public.lessons (athlete_id, coach_name, occurred_on)
 values ('a71e7e00-0000-4000-a000-00000000000a', 'Coach Diaz', '2025-09-15');
@@ -107,7 +116,7 @@ as $$
 $$;
 
 -- --------------------------------------------------------------------------
--- 1-11. The owner can read every athlete-owned table (the gate is a gate)
+-- 1-12. The owner can read every athlete-owned table (the gate is a gate)
 -- --------------------------------------------------------------------------
 
 select pg_temp.act_as('c0de0001-0000-4000-a000-000000000001');
@@ -118,6 +127,7 @@ select is((select count(*) from public.phases)::bigint,            1::bigint, 'o
 select is((select count(*) from public.events)::bigint,            1::bigint, 'owner reads events');
 select is((select count(*) from public.rounds)::bigint,            1::bigint, 'owner reads rounds');
 select is((select count(*) from public.practice_sessions)::bigint, 1::bigint, 'owner reads practice_sessions');
+select is((select count(*) from public.practice_segments)::bigint, 1::bigint, 'owner reads practice_segments');
 select is((select count(*) from public.lessons)::bigint,           1::bigint, 'owner reads lessons');
 select is((select count(*) from public.workout_blocks)::bigint,    1::bigint, 'owner reads workout_blocks');
 select is((select count(*) from public.workout_exercises)::bigint, 1::bigint, 'owner reads workout_exercises');
@@ -125,7 +135,7 @@ select is((select count(*) from public.workout_logs)::bigint,      1::bigint, 'o
 select is((select count(*) from public.week_templates)::bigint,    1::bigint, 'owner reads week_templates');
 
 -- --------------------------------------------------------------------------
--- 12-22. The unlinked stranger is denied on every athlete-owned table
+-- 13-24. The unlinked stranger is denied on every athlete-owned table
 -- --------------------------------------------------------------------------
 
 select pg_temp.act_as('c0de0009-0000-4000-a000-000000000009');
@@ -136,6 +146,7 @@ select is((select count(*) from public.phases)::bigint,            0::bigint, 'u
 select is((select count(*) from public.events)::bigint,            0::bigint, 'unlinked user is denied events');
 select is((select count(*) from public.rounds)::bigint,            0::bigint, 'unlinked user is denied rounds');
 select is((select count(*) from public.practice_sessions)::bigint, 0::bigint, 'unlinked user is denied practice_sessions');
+select is((select count(*) from public.practice_segments)::bigint, 0::bigint, 'unlinked user is denied practice_segments');
 select is((select count(*) from public.lessons)::bigint,           0::bigint, 'unlinked user is denied lessons');
 select is((select count(*) from public.workout_blocks)::bigint,    0::bigint, 'unlinked user is denied workout_blocks');
 select is((select count(*) from public.workout_exercises)::bigint, 0::bigint, 'unlinked user is denied workout_exercises');
@@ -143,7 +154,7 @@ select is((select count(*) from public.workout_logs)::bigint,      0::bigint, 'u
 select is((select count(*) from public.week_templates)::bigint,    0::bigint, 'unlinked user is denied week_templates');
 
 -- --------------------------------------------------------------------------
--- 23. tours is the shared catalog: readable by any authenticated user, linked
+-- 25. tours is the shared catalog: readable by any authenticated user, linked
 --     or not.
 -- --------------------------------------------------------------------------
 
@@ -151,9 +162,11 @@ select cmp_ok((select count(*) from public.tours)::bigint, '>=', 1::bigint,
   'unlinked authenticated user CAN read the shared tours catalog');
 
 -- --------------------------------------------------------------------------
--- 24-25. The unlinked stranger cannot WRITE athlete-owned data either. An INSERT
+-- 26-28. The unlinked stranger cannot WRITE athlete-owned data either. An INSERT
 --        that fails the WITH CHECK raises 42501 (unlike a filtered SELECT), so we
---        assert the raise on two representative tables.
+--        assert the raise on three representative tables — including
+--        practice_segments, where a successful write would let a stranger inject
+--        minutes into someone else's rollup.
 -- --------------------------------------------------------------------------
 
 select throws_ok(
@@ -170,6 +183,15 @@ select throws_ok(
   '42501',
   'new row violates row-level security policy for table "goals"',
   'unlinked user cannot insert a goal for someone else''s athlete'
+);
+
+select throws_ok(
+  $$ insert into public.practice_segments (practice_session_id, athlete_id, session_type, minutes)
+     values ('50e50000-0000-4000-a000-000000000001',
+             'a71e7e00-0000-4000-a000-00000000000a', 'putting', 30) $$,
+  '42501',
+  'new row violates row-level security policy for table "practice_segments"',
+  'unlinked user cannot add a segment to someone else''s practice session'
 );
 
 -- --------------------------------------------------------------------------

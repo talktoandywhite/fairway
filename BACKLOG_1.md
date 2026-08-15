@@ -342,7 +342,7 @@ lessons arrive in Session 18.
 Phase-aware weekly view rendering the template for the current phase, with the week's total hours and
 activity mix. Phase switcher to preview other phases. Strength blocks with their exercise lists
 (part, sets, reps, coaching note), the current block surfaced by date, and simple set/rep logging that
-writes a `gym` practice session so the minutes rollup stays honest.
+writes an `exercise` practice segment so the minutes rollup stays honest.
 
 **Files:** `app/(app)/training/**`, `app/(app)/strength/**`, `components/training/*`
 

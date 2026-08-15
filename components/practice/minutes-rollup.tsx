@@ -47,6 +47,8 @@ export function MinutesRollup({
   /** Only the types with time on them, biggest first (`Rollup.loggedRows`). */
   rows: RollupRow[];
   totalMinutes: number;
+  /** Day blocks in the window — not segments. A four-discipline afternoon is one
+   * session here, which is what "over 12 sessions" should mean to an athlete. */
   sessionCount: number;
   /** e.g. "30 days" — names the window in the caption and the chart's label. */
   windowLabel: string;

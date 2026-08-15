@@ -126,8 +126,8 @@ describe("buildRollup", () => {
     expect(rollup.rows.map((r) => r.type)).toEqual([...SESSION_TYPES]);
     expect(
       must(
-        rollup.rows.find((r) => r.type === "gym"),
-        "the gym row",
+        rollup.rows.find((r) => r.type === "exercise"),
+        "the exercise row",
       ).minutes,
     ).toBe(0);
   });
@@ -137,10 +137,10 @@ describe("buildRollup", () => {
       s("putting", 30),
       s("putting", 30),
       s("range_full_swing", 60),
-      s("gym", 60),
+      s("exercise", 60),
     ]);
     expect(rollup.totalMinutes).toBe(180);
-    expect(rollup.sessionCount).toBe(4);
+    expect(rollup.segmentCount).toBe(4);
     expect(
       must(
         rollup.rows.find((r) => r.type === "putting"),
@@ -151,7 +151,7 @@ describe("buildRollup", () => {
 
   it("pins each type to its fixed chart slot regardless of what is logged", () => {
     const full = buildRollup(SESSION_TYPES.map((t) => s(t, 30)));
-    const sparse = buildRollup([s("lesson", 30), s("gym", 30)]);
+    const sparse = buildRollup([s("lesson", 30), s("exercise", 30)]);
     for (const type of SESSION_TYPES) {
       const a = must(
         full.rows.find((r) => r.type === type),
@@ -170,11 +170,11 @@ describe("buildRollup", () => {
     const rollup = buildRollup([
       s("putting", 30),
       s("short_game", 90),
-      s("gym", 60),
+      s("exercise", 60),
     ]);
     expect(rollup.loggedRows.map((r) => r.type)).toEqual([
       "short_game",
-      "gym",
+      "exercise",
       "putting",
     ]);
   });
@@ -199,8 +199,8 @@ describe("practice bands", () => {
     expect(new Set(all).size).toBe(SESSION_TYPES.length);
   });
 
-  it("excludes gym and lesson from the mix", () => {
-    expect([...OUTSIDE_MIX_TYPES].sort()).toEqual(["gym", "lesson"]);
+  it("excludes exercise and lesson from the mix", () => {
+    expect([...OUTSIDE_MIX_TYPES].sort()).toEqual(["exercise", "lesson"]);
   });
 
   it("leaves an achievable in-range mix in every band", () => {
@@ -258,14 +258,14 @@ describe("ratioCheck", () => {
     expect(ratioCheck([], { scoringAverage: 113, level })).toBeNull();
     // Gym-only is not a practice mix — there is nothing to have an opinion about.
     expect(
-      ratioCheck([s("gym", 300)], { scoringAverage: 113, level }),
+      ratioCheck([s("exercise", 300)], { scoringAverage: 113, level }),
     ).toBeNull();
   });
 
-  it("takes shares over the mix only, leaving gym and lesson out of the denominator", () => {
+  it("takes shares over the mix only, leaving exercise and lesson out of the denominator", () => {
     const check = must(
       ratioCheck(
-        [s("putting", 100), s("range_full_swing", 100), s("gym", 800)],
+        [s("putting", 100), s("range_full_swing", 100), s("exercise", 800)],
         { scoringAverage: 113, level },
       ),
       "a ratio check",

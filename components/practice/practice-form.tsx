@@ -2,20 +2,23 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm, type Resolver } from "react-hook-form";
+import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { DataValue } from "@/components/ui/data-value";
 import { FormField, describedBy } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { formatMinutes } from "@/lib/practice/format";
 import {
-  MINUTE_PRESETS,
   SESSION_TYPE_HINTS,
   SESSION_TYPE_LABELS,
+  emptySegment,
   practiceSchema,
+  totalMinutes,
   type PracticeFormValues,
 } from "@/lib/schemas/practice";
 import { SESSION_TYPES } from "@/lib/stats";
@@ -29,18 +32,22 @@ import { FormAlert } from "@/app/(auth)/_components/form-alert";
 
 /**
  * The practice quick-add — create and edit share it; the only differences are the
- * initial values and which action it calls. Held to the same 60-second standard
- * as the round form (CLAUDE.md design principle #2), and a practice session has
- * an even lower excuse threshold than a round: if logging it takes longer than
- * walking to the car, it does not get logged.
+ * initial values and which action it calls.
  *
- * Shape of the screen, top to bottom:
- *   - Date (defaults to today), a seven-way type grid, and minutes. Three taps
- *     and a session is logged.
- *   - An "Add detail" disclosure holding focus, drill, result, and notes — the
- *     fields that make the log worth re-reading, for the sessions worth writing
- *     up. Its open/closed state is remembered per user in localStorage (a UI
- *     preference, not athlete data, so it never touches the database).
+ * A session is a DAY'S BLOCK, so the discipline picker is a MULTI-SELECT: an
+ * athlete at this level fills 1.5–3 hours a day, and that day routinely covers
+ * exercise, swing work, short game and putting. Logging it as one session is both
+ * fewer taps and a truer record than four separate entries.
+ *
+ * Each selected discipline then gets its OWN minutes box. That is the one piece
+ * of friction this form insists on, and it is the whole reason the screen is
+ * worth anything: the rollup and the ratio check are built entirely from these
+ * numbers, and dividing a session total between disciplines would put figures
+ * nobody entered into the one place the athlete is meant to act on.
+ *
+ * The single-discipline case stays as fast as it was — tap Putting, type 45,
+ * save — and the running total sits under the rows so a 2.5-hour block can be
+ * checked at a glance.
  *
  * It validates on the client with the SAME `practiceSchema` the server re-parses;
  * the server is the security boundary and RLS the backstop.
@@ -52,16 +59,10 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Nothing pre-picked. On a multi-select, a default selection is a claim about
+ * what the athlete did, and it costs whoever didn't do it an extra tap to undo. */
 function createDefaults(): PracticeFormValues {
-  return {
-    occurred_on: todayIso(),
-    session_type: "short_game",
-    minutes: "",
-    focus: null,
-    drill: null,
-    result: null,
-    notes: null,
-  };
+  return { occurred_on: todayIso(), notes: null, segments: [] };
 }
 
 export function PracticeForm({
@@ -81,10 +82,45 @@ export function PracticeForm({
   const form = useForm<PracticeFormValues>({
     resolver: zodResolver(practiceSchema) as Resolver<PracticeFormValues>,
     defaultValues: initialValues ?? createDefaults(),
-    mode: "onBlur",
+    // Deliberately NOT the `onBlur` the round and event forms use. Those have a
+    // fixed set of fields; this one grows a minutes box each time a discipline is
+    // picked, and the resolver validates the whole schema at once — so blurring
+    // the first box would flag every box the athlete hasn't reached yet as "Enter
+    // the minutes". Validating at submit and then live on change gives the same
+    // protection without telling someone off for not having got there.
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "segments",
   });
 
   const errors = form.formState.errors;
+  // Watched so the running total and the pressed state of each discipline chip
+  // stay in step with what's actually in the form.
+  const segments = form.watch("segments");
+  const selected = new Set(segments?.map((s) => s.session_type));
+  const total = totalMinutes(segments ?? []);
+
+  /**
+   * Toggling a discipline adds or removes its whole segment — including any
+   * detail written against it, which is the honest behaviour: if the discipline
+   * isn't part of the session, neither is its drill.
+   *
+   * A toggle always toggles, including down to nothing selected. Blocking the
+   * last removal would make a mis-tap unfixable; "pick at least one" is a rule
+   * the schema states plainly at submit instead.
+   */
+  const toggleType = (type: SessionType) => {
+    const index = (segments ?? []).findIndex((s) => s.session_type === type);
+    if (index >= 0) {
+      remove(index);
+      return;
+    }
+    append(emptySegment(type));
+  };
 
   const [detailOpen, setDetailOpen] = React.useState(false);
   React.useEffect(() => {
@@ -112,19 +148,25 @@ export function PracticeForm({
     const values = form.getValues();
     const fd = new FormData();
 
-    // Always present.
     fd.set("occurred_on", values.occurred_on);
-    fd.set("session_type", values.session_type);
-    fd.set("minutes", values.minutes);
+    if (values.notes && values.notes.trim() !== "")
+      fd.set("notes", values.notes);
 
-    // Optional — omit empties so the server stores null (not "").
-    const setIf = (key: string, v: string | null) => {
-      if (v !== null && v !== undefined && v.trim() !== "") fd.set(key, v);
-    };
-    setIf("focus", values.focus);
-    setIf("drill", values.drill);
-    setIf("result", values.result);
-    setIf("notes", values.notes);
+    // The segments ride as JSON: a variable-length list of objects flattened into
+    // indexed form keys is a parser to get wrong on both sides for no gain. The
+    // server re-parses it with the shared schema like any other input.
+    fd.set(
+      "segments",
+      JSON.stringify(
+        values.segments.map((s) => ({
+          session_type: s.session_type,
+          minutes: s.minutes,
+          focus: s.focus,
+          drill: s.drill,
+          result: s.result,
+        })),
+      ),
+    );
 
     if (mode === "edit" && sessionId) fd.set("id", sessionId);
 
@@ -138,8 +180,10 @@ export function PracticeForm({
       if (result.fieldErrors) {
         for (const [name, messages] of Object.entries(result.fieldErrors)) {
           const first = messages?.[0];
+          // Server paths match the form's field names ("segments.0.minutes"), so
+          // an error lands on the box that caused it.
           if (first) {
-            form.setError(name as keyof PracticeFormValues, { message: first });
+            form.setError(name as never, { message: first });
           }
         }
       }
@@ -147,69 +191,113 @@ export function PracticeForm({
     });
   });
 
+  const segmentsError =
+    errors.segments?.message ?? errors.segments?.root?.message;
+
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
 
-      {/* --- The 60-second core ------------------------------------------- */}
-      <div className="flex flex-col gap-4">
-        <FormField
+      {/* --- When ---------------------------------------------------------- */}
+      <FormField
+        id="occurred_on"
+        label="Date"
+        error={errors.occurred_on?.message}
+      >
+        <Input
           id="occurred_on"
-          label="Date"
-          error={errors.occurred_on?.message}
-        >
-          <Input
-            id="occurred_on"
-            type="date"
-            aria-invalid={!!errors.occurred_on}
-            aria-describedby={describedBy(
-              "occurred_on",
-              undefined,
-              errors.occurred_on?.message,
-            )}
-            {...form.register("occurred_on")}
-          />
-        </FormField>
+          type="date"
+          aria-invalid={!!errors.occurred_on}
+          aria-describedby={describedBy(
+            "occurred_on",
+            undefined,
+            errors.occurred_on?.message,
+          )}
+          {...form.register("occurred_on")}
+        />
+      </FormField>
 
-        <FormField
-          id="session_type"
-          label="What did you work on?"
-          error={errors.session_type?.message}
-        >
-          <Controller
-            name="session_type"
-            control={form.control}
-            render={({ field }) => (
-              <TypeGrid value={field.value} onChange={field.onChange} />
-            )}
-          />
-        </FormField>
+      {/* --- What ---------------------------------------------------------- */}
+      <FormField
+        id="segments"
+        label="What did you work on?"
+        hint="Tap everything this session covered."
+        error={segmentsError}
+      >
+        <TypeGrid selected={selected} onToggle={toggleType} />
+      </FormField>
 
-        <FormField
-          id="minutes"
-          label="How long?"
-          hint="Tap a preset or type the minutes."
-          error={errors.minutes?.message}
-        >
-          <Controller
-            name="minutes"
-            control={form.control}
-            render={({ field }) => (
-              <MinutesField
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                invalid={!!errors.minutes}
-                describedBy={describedBy(
-                  "minutes",
-                  "Tap a preset or type the minutes.",
-                  errors.minutes?.message,
-                )}
-              />
-            )}
-          />
-        </FormField>
-      </div>
+      {/* --- How long on each ---------------------------------------------- */}
+      {fields.length === 0 ? null : (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-medium text-foreground">
+              How long on each?
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Total{" "}
+              <DataValue className="text-base text-foreground">
+                {formatMinutes(total)}
+              </DataValue>
+            </p>
+          </div>
+
+          <ul className="flex flex-col gap-3">
+            {fields.map((field, index) => {
+              const type = segments?.[index]?.session_type ?? "putting";
+              const error = errors.segments?.[index]?.minutes?.message;
+              const id = `segments.${index}.minutes`;
+              return (
+                <li
+                  key={field.id}
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-border bg-card px-3 py-3"
+                >
+                  <div className="flex min-w-0 flex-col">
+                    <label
+                      htmlFor={id}
+                      className="text-sm font-medium text-foreground"
+                    >
+                      {SESSION_TYPE_LABELS[type]}
+                    </label>
+                    {/* The gloss lives here rather than under the picker: with
+                        four disciplines selected, concatenating them up there was
+                        a wall of text, and this is the moment it actually helps —
+                        the athlete is deciding which minutes go in this bucket. */}
+                    <span className="truncate text-sm text-muted-foreground">
+                      {SESSION_TYPE_HINTS[type]}
+                    </span>
+                    {error ? (
+                      <span
+                        id={`${id}-error`}
+                        role="alert"
+                        className="text-sm font-medium text-destructive"
+                      >
+                        {error}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Input
+                      id={id}
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={600}
+                      step={1}
+                      placeholder="45"
+                      className="data-value w-24 tabular-nums"
+                      aria-invalid={!!error}
+                      aria-describedby={error ? `${id}-error` : undefined}
+                      {...form.register(`segments.${index}.minutes`)}
+                    />
+                    <span className="text-sm text-muted-foreground">min</span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       {/* --- Add detail ---------------------------------------------------- */}
       <div className="flex flex-col gap-4 border-t border-border pt-5">
@@ -239,62 +327,54 @@ export function PracticeForm({
             so a `flex` class here would silently beat `hidden` and the panel
             would never close. The layout lives on the inner wrapper instead. */}
         <div id="practice-detail" hidden={!detailOpen}>
-          <div className="flex flex-col gap-4">
-            <FormField id="focus" label="Focus" error={errors.focus?.message}>
-              <Input
-                id="focus"
-                placeholder="e.g. Speed control"
-                aria-invalid={!!errors.focus}
-                aria-describedby={describedBy(
-                  "focus",
-                  undefined,
-                  errors.focus?.message,
-                )}
-                {...form.register("focus")}
-              />
-            </FormField>
-
-            <FormField id="drill" label="Drill" error={errors.drill?.message}>
-              <Input
-                id="drill"
-                placeholder="e.g. Lag ladder to 20/30/40 ft"
-                aria-invalid={!!errors.drill}
-                aria-describedby={describedBy(
-                  "drill",
-                  undefined,
-                  errors.drill?.message,
-                )}
-                {...form.register("drill")}
-              />
-            </FormField>
+          <div className="flex flex-col gap-5">
+            {/* Detail is per DISCIPLINE, because that is what it describes:
+                "made 18 of 20 from 4 ft" is about the putting, not the afternoon. */}
+            {fields.map((field, index) => {
+              const type = segments?.[index]?.session_type ?? "putting";
+              return (
+                <fieldset key={field.id} className="flex flex-col gap-3">
+                  <legend className="text-sm font-semibold text-foreground">
+                    {SESSION_TYPE_LABELS[type]}
+                  </legend>
+                  <FormField id={`segments.${index}.focus`} label="Focus">
+                    <Input
+                      id={`segments.${index}.focus`}
+                      placeholder="e.g. Speed control"
+                      {...form.register(`segments.${index}.focus`)}
+                    />
+                  </FormField>
+                  <FormField id={`segments.${index}.drill`} label="Drill">
+                    <Input
+                      id={`segments.${index}.drill`}
+                      placeholder="e.g. Lag ladder to 20/30/40 ft"
+                      {...form.register(`segments.${index}.drill`)}
+                    />
+                  </FormField>
+                  <FormField id={`segments.${index}.result`} label="Result">
+                    <Input
+                      id={`segments.${index}.result`}
+                      placeholder="e.g. Made 18 of 20 from 4 ft"
+                      {...form.register(`segments.${index}.result`)}
+                    />
+                  </FormField>
+                </fieldset>
+              );
+            })}
 
             <FormField
-              id="result"
-              label="Result"
-              hint="What actually happened — the number you hit, or how it felt."
-              error={errors.result?.message}
+              id="notes"
+              label="Notes"
+              hint="About the session as a whole."
+              error={errors.notes?.message}
             >
-              <Input
-                id="result"
-                placeholder="e.g. Made 18 of 20 from 4 ft"
-                aria-invalid={!!errors.result}
-                aria-describedby={describedBy(
-                  "result",
-                  "What actually happened — the number you hit, or how it felt.",
-                  errors.result?.message,
-                )}
-                {...form.register("result")}
-              />
-            </FormField>
-
-            <FormField id="notes" label="Notes" error={errors.notes?.message}>
               <Textarea
                 id="notes"
                 placeholder="Anything worth remembering next time."
                 aria-invalid={!!errors.notes}
                 aria-describedby={describedBy(
                   "notes",
-                  undefined,
+                  "About the session as a whole.",
                   errors.notes?.message,
                 )}
                 {...form.register("notes")}
@@ -327,37 +407,38 @@ export function PracticeForm({
 }
 
 /**
- * The seven session types as a grid of big targets — the fastest way to pick one
- * with a thumb, and it puts the whole vocabulary on screen so two athletes sort
- * the same session into the same bucket. The selected type's gloss shows below,
- * which is where the sorting rules actually live.
+ * The seven disciplines as a grid of big toggles — multi-select, because a day's
+ * training is usually several of them. Selected ones read `aria-pressed`, and the
+ * gloss beneath names what belongs in each bucket, which is where the sorting
+ * rules actually live: the rollup is only as honest as two athletes filing the
+ * same work the same way.
  */
 function TypeGrid({
-  value,
-  onChange,
+  selected,
+  onToggle,
 }: {
-  value: SessionType;
-  onChange: (value: SessionType) => void;
+  selected: Set<SessionType>;
+  onToggle: (type: SessionType) => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
       <div
         role="group"
-        aria-label="Session type"
+        aria-label="Disciplines worked on"
         className="grid grid-cols-2 gap-2 sm:grid-cols-4"
       >
         {SESSION_TYPES.map((type) => {
-          const selected = value === type;
+          const isSelected = selected.has(type);
           return (
             <button
               key={type}
               type="button"
-              onClick={() => onChange(type)}
-              aria-pressed={selected}
+              onClick={() => onToggle(type)}
+              aria-pressed={isSelected}
               className={cn(
                 "flex h-12 items-center justify-center rounded-md border px-2 text-center text-sm font-medium transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                selected
+                isSelected
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input bg-background text-foreground hover:bg-muted",
               )}
@@ -367,75 +448,6 @@ function TypeGrid({
           );
         })}
       </div>
-      <p className="text-sm text-muted-foreground">
-        {SESSION_TYPE_HINTS[value]}
-      </p>
-    </div>
-  );
-}
-
-/**
- * Minutes: preset chips plus a free field. The presets cover almost every real
- * session, so the common case is one tap; the field is there for the range
- * session that ran long. A chip reads as pressed when it matches what's typed,
- * so the two controls never disagree about the same value.
- */
-function MinutesField({
-  value,
-  onChange,
-  onBlur,
-  invalid,
-  describedBy: describedByIds,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onBlur: () => void;
-  invalid: boolean;
-  describedBy?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div
-        role="group"
-        aria-label="Common session lengths"
-        className="flex flex-wrap gap-2"
-      >
-        {MINUTE_PRESETS.map((preset) => {
-          const selected = value === String(preset);
-          return (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => onChange(String(preset))}
-              aria-pressed={selected}
-              className={cn(
-                "inline-flex h-11 min-w-14 items-center justify-center rounded-full border px-4 text-sm font-medium transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                selected
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-input bg-background text-foreground hover:bg-muted",
-              )}
-            >
-              {preset}m
-            </button>
-          );
-        })}
-      </div>
-      <Input
-        id="minutes"
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={600}
-        step={1}
-        placeholder="Minutes"
-        className="data-value tabular-nums"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        aria-invalid={invalid}
-        aria-describedby={describedByIds}
-      />
     </div>
   );
 }

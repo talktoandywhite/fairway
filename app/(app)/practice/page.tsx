@@ -16,7 +16,11 @@ import {
   ratioCheck,
   sessionsInWindow,
 } from "@/lib/practice/present";
-import { getPracticeSessions, getRatioBasisData } from "@/lib/practice/queries";
+import {
+  getPracticeSessions,
+  getRatioBasisData,
+  segmentsOf,
+} from "@/lib/practice/queries";
 import { scoringAverage } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/server";
 
@@ -53,9 +57,13 @@ export default async function PracticePage({
   ]);
 
   const activeWindow = parseWindow(windowParam);
+  // The window is a property of the day (sessions carry the date); the minutes
+  // are a property of the discipline (segments carry those). So: narrow by
+  // session, then measure by segment.
   const windowed = sessionsInWindow(sessions, todayISO(), activeWindow);
-  const rollup = buildRollup(windowed);
-  const check = ratioCheck(windowed, {
+  const windowedSegments = segmentsOf(windowed);
+  const rollup = buildRollup(windowedSegments);
+  const check = ratioCheck(windowedSegments, {
     // The engine owns the "18-hole tournament rounds only" rule; null here means
     // there is no honest scoring average yet and the band falls back to level.
     scoringAverage: scoringAverage(basis.rounds),
@@ -116,7 +124,7 @@ export default async function PracticePage({
               <MinutesRollup
                 rows={rollup.loggedRows}
                 totalMinutes={rollup.totalMinutes}
-                sessionCount={rollup.sessionCount}
+                sessionCount={windowed.length}
                 windowLabel={activeWindow.label}
               />
             </>

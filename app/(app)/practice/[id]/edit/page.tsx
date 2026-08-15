@@ -5,16 +5,17 @@ import { ChevronLeft } from "lucide-react";
 import { PracticeForm } from "@/components/practice/practice-form";
 import { getActiveAthleteId } from "@/lib/auth/athlete";
 import { getPracticeSession } from "@/lib/practice/queries";
+import type { PracticeSessionWithSegments } from "@/lib/practice/queries";
 import { SESSION_TYPE_LABELS } from "@/lib/schemas/practice";
 import type { PracticeFormValues } from "@/lib/schemas/practice";
 import { formatPlayedOn } from "@/lib/rounds/format";
-import type { PracticeSessionRow } from "@/lib/stats";
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Edit a logged practice session. Same form as new, prefilled — the stored
- * integer `minutes` loads back as the string the input holds, and the shared
- * schema re-coerces it on save.
+ * Edit a logged practice session. Same form as new, prefilled — each segment's
+ * stored integer `minutes` loads back as the string its input holds, and the
+ * shared schema re-coerces it on save. Saving replaces the session's whole set of
+ * segments, so dropping a discipline here really drops it.
  */
 export default async function EditPracticePage({
   params,
@@ -29,6 +30,10 @@ export default async function EditPracticePage({
   const session = await getPracticeSession(supabase, athleteId, id);
   if (!session) notFound();
 
+  const title = session.segments
+    .map((s) => SESSION_TYPE_LABELS[s.session_type])
+    .join(" · ");
+
   return (
     <section className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <div className="flex flex-col gap-2">
@@ -41,8 +46,8 @@ export default async function EditPracticePage({
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Edit session</h1>
         <p className="text-sm text-muted-foreground">
-          {SESSION_TYPE_LABELS[session.session_type]} on{" "}
-          {formatPlayedOn(session.occurred_on)} · update anything that changed.
+          {title} on {formatPlayedOn(session.occurred_on)} · update anything
+          that changed.
         </p>
       </div>
 
@@ -55,16 +60,20 @@ export default async function EditPracticePage({
   );
 }
 
-/** Map a stored session onto the form's value shape — minutes as the string the
- * number input holds. */
-function toFormValues(session: PracticeSessionRow): PracticeFormValues {
+/** Map a stored session onto the form's value shape — each segment's minutes as
+ * the string its number input holds. */
+function toFormValues(
+  session: PracticeSessionWithSegments,
+): PracticeFormValues {
   return {
     occurred_on: session.occurred_on,
-    session_type: session.session_type,
-    minutes: String(session.minutes),
-    focus: session.focus,
-    drill: session.drill,
-    result: session.result,
     notes: session.notes,
+    segments: session.segments.map((segment) => ({
+      session_type: segment.session_type,
+      minutes: String(segment.minutes),
+      focus: segment.focus,
+      drill: segment.drill,
+      result: segment.result,
+    })),
   };
 }

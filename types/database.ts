@@ -418,7 +418,7 @@ export type Database = {
           },
         ]
       }
-      practice_sessions: {
+      practice_segments: {
         Row: {
           athlete_id: string
           created_at: string
@@ -426,8 +426,7 @@ export type Database = {
           focus: string | null
           id: string
           minutes: number
-          notes: string | null
-          occurred_on: string
+          practice_session_id: string
           result: string | null
           session_type: Database["public"]["Enums"]["session_type"]
           updated_at: string | null
@@ -439,8 +438,7 @@ export type Database = {
           focus?: string | null
           id?: string
           minutes: number
-          notes?: string | null
-          occurred_on: string
+          practice_session_id: string
           result?: string | null
           session_type: Database["public"]["Enums"]["session_type"]
           updated_at?: string | null
@@ -452,10 +450,44 @@ export type Database = {
           focus?: string | null
           id?: string
           minutes?: number
-          notes?: string | null
-          occurred_on?: string
+          practice_session_id?: string
           result?: string | null
           session_type?: Database["public"]["Enums"]["session_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_segments_practice_session_id_athlete_id_fkey"
+            columns: ["practice_session_id", "athlete_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
+            referencedColumns: ["id", "athlete_id"]
+          },
+        ]
+      }
+      practice_sessions: {
+        Row: {
+          athlete_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          occurred_on: string
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          occurred_on: string
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          occurred_on?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -823,6 +855,10 @@ export type Database = {
         Args: { target_athlete_id: string }
         Returns: boolean
       }
+      replace_practice_segments: {
+        Args: { p_segments: Json; p_session_id: string }
+        Returns: undefined
+      }
       verify_guardian_consent: {
         Args: { consent_token: string }
         Returns: string
@@ -849,7 +885,7 @@ export type Database = {
         | "short_game"
         | "putting"
         | "on_course"
-        | "gym"
+        | "exercise"
         | "lesson"
       workout_part:
         | "warmup"
@@ -1009,7 +1045,7 @@ export const Constants = {
         "short_game",
         "putting",
         "on_course",
-        "gym",
+        "exercise",
         "lesson",
       ],
       workout_part: [

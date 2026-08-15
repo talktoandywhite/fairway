@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { formatMinutes } from "@/lib/practice/format";
 import { formatDayShort, monthKey, monthLabel } from "@/lib/schedule/format";
 import { SESSION_TYPE_LABELS } from "@/lib/schemas/practice";
-import type { PracticeSessionRow } from "@/lib/stats";
+import type { PracticeSessionWithSegments } from "@/lib/practice/queries";
 
 import { deletePracticeAction } from "@/app/(app)/practice/actions";
 import { DeletePracticeButton } from "./delete-practice-button";
@@ -21,19 +21,19 @@ import { DeletePracticeButton } from "./delete-practice-button";
  * scannable. Delete is optimistic — a removed session vanishes at once and
  * reconciles when the server revalidates.
  *
+ * Each row is a day's block, so it names the disciplines it covered and shows the
+ * block's total minutes. A four-part afternoon reads as one row, which is the
+ * point of the whole shape.
+ *
  * The month helpers are reused as-is from `lib/schedule/format`; they are pure
  * `YYYY-MM-DD` string helpers with nothing schedule-specific about them, and a
  * second copy would be a second thing to keep correct.
- *
- * Rows show raw fields only — date, type, minutes, and whatever the athlete
- * wrote. Every derived number on this screen (the rollup, the mix) lives above
- * this component and comes from the engine.
  */
 export function PracticeList({
   sessions,
   windowLabel,
 }: {
-  sessions: PracticeSessionRow[];
+  sessions: PracticeSessionWithSegments[];
   /** e.g. "30 days" — used by the empty state, which must not imply the athlete
    * has logged nothing ever when they have simply logged nothing lately. */
   windowLabel: string;
@@ -93,14 +93,23 @@ function SessionRow({
   session,
   onDelete,
 }: {
-  session: PracticeSessionRow;
+  session: PracticeSessionWithSegments;
   onDelete: (id: string) => void;
 }) {
-  const typeLabel = SESSION_TYPE_LABELS[session.session_type];
-  const label = `${formatMinutes(session.minutes)} of ${typeLabel.toLowerCase()} on ${formatDayShort(session.occurred_on)}`;
+  const minutes = session.segments.reduce((sum, s) => sum + s.minutes, 0);
+  const titles = session.segments.map(
+    (s) => SESSION_TYPE_LABELS[s.session_type],
+  );
+  const title = titles.join(" · ");
+  const label = `${formatMinutes(minutes)} on ${formatDayShort(session.occurred_on)}`;
   const [day, dayNumber] = formatDayShort(session.occurred_on).split(" ");
-  // The one-line summary under the title: whichever of these the athlete wrote.
-  const summary = [session.focus, session.drill].filter(Boolean).join(" · ");
+
+  // The one-line summary under the disciplines: whichever detail the athlete
+  // wrote, taken from whichever segments they wrote it against.
+  const summary = session.segments
+    .map((s) => s.focus ?? s.drill)
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <li className="flex items-stretch gap-1 rounded-lg border border-border bg-card">
@@ -108,8 +117,7 @@ function SessionRow({
         href={`/practice/${session.id}`}
         // `min-w-0` matters: without it this flex child refuses to shrink below
         // its content's intrinsic width, the `truncate` below never engages, and
-        // a long focus or drill line pushes the delete button off the screen at
-        // 375px. A truncation that only works on short strings isn't one.
+        // a long summary pushes the delete button off the screen at 375px.
         className="flex min-w-0 flex-1 items-center gap-3 rounded-l-lg px-3 py-3 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         <div className="flex w-11 shrink-0 flex-col items-center">
@@ -122,23 +130,25 @@ function SessionRow({
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="font-medium text-foreground">{typeLabel}</span>
+          <span className="truncate font-medium text-foreground">{title}</span>
           {summary ? (
             <span className="truncate text-sm text-muted-foreground">
               {summary}
             </span>
           ) : null}
-          {session.result ? (
-            <span className="truncate text-sm text-muted-foreground">
-              {session.result}
-            </span>
-          ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <DataValue className="text-sm text-foreground">
-            {formatMinutes(session.minutes)}
-          </DataValue>
+          <div className="flex flex-col items-end">
+            <DataValue className="text-sm text-foreground">
+              {formatMinutes(minutes)}
+            </DataValue>
+            {session.segments.length > 1 ? (
+              <span className="text-[0.65rem] uppercase text-muted-foreground">
+                {session.segments.length} parts
+              </span>
+            ) : null}
+          </div>
           <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
         </div>
       </Link>

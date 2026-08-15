@@ -1,5 +1,5 @@
-import type { EventRow, PracticeSessionRow, RoundRow } from "@/lib/stats/types";
-import { makeEvent, makeRound, makeSession } from "./factories";
+import type { EventRow, PracticeSegmentRow, RoundRow } from "@/lib/stats/types";
+import { makeEvent, makeRound, makeSegment } from "./factories";
 
 /**
  * The reference athlete, ported from `supabase/seed.sql` into typed fixtures so
@@ -58,23 +58,28 @@ export const seedEvents: EventRow[] = [
   makeEvent({ plays_on: "2026-10-03", entry_fee_cents: 6000, status: "not_registered" }), // prettier-ignore
 ];
 
-/** The seventeen practice sessions — deliberately short-game/putting heavy. */
-export const seedPracticeSessions: PracticeSessionRow[] = [
-  makeSession({ session_type: "putting", minutes: 45 }),
-  makeSession({ session_type: "short_game", minutes: 60 }),
-  makeSession({ session_type: "range_wedges", minutes: 45 }),
-  makeSession({ session_type: "putting", minutes: 30 }),
-  makeSession({ session_type: "short_game", minutes: 60 }),
-  makeSession({ session_type: "range_full_swing", minutes: 45 }),
-  makeSession({ session_type: "putting", minutes: 45 }),
-  makeSession({ session_type: "short_game", minutes: 75 }),
-  makeSession({ session_type: "on_course", minutes: 120 }),
-  makeSession({ session_type: "range_wedges", minutes: 45 }),
-  makeSession({ session_type: "gym", minutes: 50 }),
-  makeSession({ session_type: "putting", minutes: 30 }),
-  makeSession({ session_type: "short_game", minutes: 60 }),
-  makeSession({ session_type: "range_full_swing", minutes: 60 }),
-  makeSession({ session_type: "gym", minutes: 50 }),
-  makeSession({ session_type: "short_game", minutes: 45 }),
-  makeSession({ session_type: "on_course", minutes: 120 }),
+/**
+ * The seventeen practice segments — deliberately short-game/putting heavy. In
+ * the seeded database these sit inside fifteen sessions (two days are
+ * multi-discipline blocks), but the engine counts segments, so the parent
+ * grouping does not change a single number here.
+ */
+export const seedPracticeSegments: PracticeSegmentRow[] = [
+  makeSegment({ session_type: "putting", minutes: 45 }),
+  makeSegment({ session_type: "short_game", minutes: 60 }),
+  makeSegment({ session_type: "range_wedges", minutes: 45 }),
+  makeSegment({ session_type: "putting", minutes: 30 }),
+  makeSegment({ session_type: "short_game", minutes: 60 }),
+  makeSegment({ session_type: "range_full_swing", minutes: 45 }),
+  makeSegment({ session_type: "putting", minutes: 45 }),
+  makeSegment({ session_type: "short_game", minutes: 75 }),
+  makeSegment({ session_type: "on_course", minutes: 120 }),
+  makeSegment({ session_type: "range_wedges", minutes: 45 }),
+  makeSegment({ session_type: "exercise", minutes: 50 }),
+  makeSegment({ session_type: "putting", minutes: 30 }),
+  makeSegment({ session_type: "short_game", minutes: 60 }),
+  makeSegment({ session_type: "range_full_swing", minutes: 60 }),
+  makeSegment({ session_type: "exercise", minutes: 50 }),
+  makeSegment({ session_type: "short_game", minutes: 45 }),
+  makeSegment({ session_type: "on_course", minutes: 120 }),
 ];
