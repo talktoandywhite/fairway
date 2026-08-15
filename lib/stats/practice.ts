@@ -1,8 +1,14 @@
 import { SESSION_TYPES } from "./types";
-import type { PracticeSessionRow, SessionTypeTotals } from "./types";
+import type { PracticeSegmentRow, SessionTypeTotals } from "./types";
 
 /**
  * Metrics over the Practice Log.
+ *
+ * These count SEGMENTS, not sessions. A session is a day's block and routinely
+ * covers several disciplines — exercise, then swing work, then putting — and the
+ * minutes for each live on that discipline's segment (migration 0010). Counting
+ * sessions would mean dividing a block total between disciplines, and a divided
+ * total is a number the athlete never entered.
  *
  * Session 7's job stops at the computed mix. Judging that mix against a healthy
  * ratio for the athlete's level — the workbook's "a 113 shooter practicing
@@ -23,11 +29,11 @@ function emptyTotals(): SessionTypeTotals {
  * never have to reason about missing keys.
  */
 export function minutesByType(
-  sessions: PracticeSessionRow[],
+  segments: PracticeSegmentRow[],
 ): SessionTypeTotals {
   const totals = emptyTotals();
-  for (const session of sessions) {
-    totals[session.session_type] += session.minutes;
+  for (const segment of segments) {
+    totals[segment.session_type] += segment.minutes;
   }
   return totals;
 }
@@ -38,9 +44,9 @@ export function minutesByType(
  * ratio over zero minutes is undefined, not a record of zeros.
  */
 export function practiceRatio(
-  sessions: PracticeSessionRow[],
+  segments: PracticeSegmentRow[],
 ): SessionTypeTotals | null {
-  const totals = minutesByType(sessions);
+  const totals = minutesByType(segments);
   const totalMinutes = SESSION_TYPES.reduce(
     (sum, type) => sum + totals[type],
     0,

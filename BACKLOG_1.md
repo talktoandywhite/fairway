@@ -342,7 +342,7 @@ lessons arrive in Session 18.
 Phase-aware weekly view rendering the template for the current phase, with the week's total hours and
 activity mix. Phase switcher to preview other phases. Strength blocks with their exercise lists
 (part, sets, reps, coaching note), the current block surfaced by date, and simple set/rep logging that
-writes a `gym` practice session so the minutes rollup stays honest.
+writes an `exercise` practice segment so the minutes rollup stays honest.
 
 **Files:** `app/(app)/training/**`, `app/(app)/strength/**`, `components/training/*`
 
@@ -780,6 +780,90 @@ proposal, not an implementation.
 
 Only if the PWA proves inadequate — evaluate with real usage data before starting. Push
 notifications, home-screen presence, and camera capture for swing video are the plausible drivers.
+
+---
+
+# Proposed — coach-assigned practice
+
+**Raised by the owner during Session 11. Needs a session number when V1 is next re-planned;
+it belongs immediately after Session 18 and depends on it.**
+
+**Goal:** a coach prescribes practice with minutes-based targets, and the athlete can see what was
+asked and how close they got.
+
+Session 18 already has the coach assigning drills with a target rep count. This is the other half:
+targets in MINUTES, by discipline, which is the unit the Practice Log and the ratio check already
+speak. A coach assigns "this week: 90 min short game, 60 min putting, 45 min full swing" and the
+athlete sees it against what they actually logged.
+
+`practice_assignments` (athlete_id, assigned_by, a date or week window, an optional note,
+`status assignment_status`) with a child `practice_assignment_targets` (session_type,
+target_minutes) — the same parent/child shape, and the same rule, as `practice_segments`: minutes per
+discipline, never one total to be divided.
+
+Note the write asymmetry, which the RLS policies have to encode: the COACH owns the targets (the
+athlete must not be able to lower a target to meet it), the ATHLETE owns the status (a coach must not
+be able to mark someone's work complete or missed on their behalf). `can_write_athlete` is not
+sufficient on its own for either — this is the first table in the schema where "who may write" splits
+by column, so expect the policies to be longer than the one-liners everywhere else, and test both
+directions in pgTAP.
+
+**Settled by the owner:**
+
+**The athlete declares the outcome; the log supplies the minutes. These are different fields, and
+neither is a competing claim about the same number.** The athlete records one of
+`complete | partial | exceeded | missed` (a new `assignment_status` enum) against each assignment —
+a judgment the log cannot make on its own, since only the athlete knows whether 40 logged minutes was
+the session cut short or the session done properly. The minutes shown beside it come from their
+logged segments as normal. A coach reading it sees both: what was asked, what was declared, what was
+logged.
+
+**`missed` is a first-class, athlete-recorded outcome, and the design depends on it being one.**
+This is what keeps the feature on the right side of the CLAUDE.md tone rule. The risk with a
+compliance tracker is that it pressures an athlete into logging what the coach asked for instead of
+what happened, which would quietly rot every number on the Practice screen including the ratio check.
+That pressure comes from a miss being a silent failure state the athlete is caught in. Here it is
+something they report, so reporting it honestly IS operating responsibly — which is the thing the
+record is meant to measure. Build it that way: logging a miss must be as easy and as unpunished as
+logging a completion, and it never earns a red badge or a broken streak.
+
+**The record is a litmus test for all three parties, not surveillance of one.** Athlete, coach and
+parent read the same view. Athlete-logged sessions above and beyond the assigned ones count and are
+visible as such — an athlete without a coach uses the Practice Log exactly as it works today, and the
+assignment layer only ever adds to it.
+
+**Corollary that follows from the above, and is not optional:** the athlete sees precisely what their
+coach and parent see, with no hidden diligence score and no derived "reliability" figure computed
+behind their back. This is a product for minors; a record about someone that they cannot themselves
+read is not something to build here.
+
+**Still open:**
+
+- **Whose opinion leads on screen?** The athlete would now have two: the coach's assignment and the
+  healthy-mix band. They can legitimately disagree. A real coach who knows this athlete should
+  outrank a generic band — so lead with the assignment and keep the band as context, not the reverse.
+
+**Also:** an assignment note is free text authored by another user. It must never reach
+`buildAthleteContext()` — AI_COACH.md already forbids that, and this is precisely the tempting case.
+
+**Files:** `supabase/migrations/00NN_practice_assignments.sql`, `lib/schemas/assignment.ts`,
+`lib/practice/assignments.ts`, `app/(app)/practice/**`, coach-side authoring under Session 18's surfaces
+
+---
+
+# Discovered work
+
+Found mid-session and deliberately not fixed in flight (see hygiene rules below).
+
+- **The round form's "Add detail" disclosure never collapses.** `components/rounds/round-form.tsx`
+  puts `hidden={!detailExpanded}` and `className="flex …"` on the same element. Tailwind's preflight
+  `[hidden]{display:none}` and the `.flex` utility have equal specificity and utilities are emitted
+  last, so `flex` wins and the panel is always open — the eight leak fields are on screen for a
+  ten-year-old logging a score, which is exactly what the disclosure exists to prevent. Found in
+  Session 11, which hit the same trap; the fix there was to move the layout to an inner wrapper so
+  the element carrying `hidden` has no display utility of its own. Apply the same fix, and add the
+  `toBeHidden()` assertion to `e2e/rounds.spec.ts` that `e2e/practice.spec.ts` now carries.
+  Small — fold into Session 15 (MVP hardening) or take it standalone.
 
 ---
 

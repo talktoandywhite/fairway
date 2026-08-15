@@ -8,6 +8,18 @@ import type { Database } from "@/types/database";
  */
 export type RoundRow = Database["public"]["Tables"]["rounds"]["Row"];
 export type EventRow = Database["public"]["Tables"]["events"]["Row"];
+/**
+ * The practice row the engine measures is the SEGMENT, not the session. A
+ * session is a day's block and may cover several disciplines; the minutes that
+ * belong to each one live on its segment (migration 0010). Everything in
+ * `lib/stats/practice` therefore counts segments — a session total would have to
+ * be divided to be useful, and a divided total is a number nobody entered.
+ */
+export type PracticeSegmentRow =
+  Database["public"]["Tables"]["practice_segments"]["Row"];
+
+/** The parent block: a date and its notes. Carried for callers that arrange
+ * segments by day; no metric is computed from it. */
 export type PracticeSessionRow =
   Database["public"]["Tables"]["practice_sessions"]["Row"];
 
@@ -54,7 +66,7 @@ export const SESSION_TYPES = [
   "short_game",
   "putting",
   "on_course",
-  "gym",
+  "exercise",
   "lesson",
 ] as const satisfies readonly SessionType[];
 

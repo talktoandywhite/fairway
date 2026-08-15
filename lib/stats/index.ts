@@ -31,6 +31,7 @@ export { SESSION_TYPES } from "./types";
 export type {
   RoundRow,
   EventRow,
+  PracticeSegmentRow,
   PracticeSessionRow,
   SessionType,
   SessionTypeTotals,

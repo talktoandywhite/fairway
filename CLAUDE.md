@@ -91,7 +91,8 @@ Use these words in code, in the database, and in the UI. Consistency here is wor
 | **Gap** | Days between consecutive planned events. The workbook's rule: never more than 60 |
 | **Phase** | A block of the training year with its own focus and score target. The reference plan has five |
 | **Leak** | A named source of lost strokes with a current range, a target, and strokes-saved value |
-| **Practice session** | A logged training block. Types: `range_full_swing`, `range_wedges`, `short_game`, `putting`, `on_course`, `gym`, `lesson` |
+| **Practice session** | A day's training block. Holds one or more **segments**; carries the date and the session notes |
+| **Segment** | One discipline within a practice session, with its own minutes and its own focus/drill/result. Types: `range_full_swing`, `range_wedges`, `short_game`, `putting`, `on_course`, `exercise`, `lesson`. Minutes are always per segment — never a session total divided between disciplines |
 | **Block** | A strength-training mesocycle (A, B, C in the reference plan) |
 | **Up and down** | Getting into the hole in two strokes from off the green |
 | **GIR** | Greens in regulation |
