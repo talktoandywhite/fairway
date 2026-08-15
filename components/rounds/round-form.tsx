@@ -82,6 +82,9 @@ export function RoundForm({
   roundId,
   courses,
   initialValues,
+  eventId,
+  prefill,
+  eventName,
 }: {
   mode: "create" | "edit";
   roundId?: string;
@@ -89,6 +92,13 @@ export function RoundForm({
   courses: string[];
   /** Prefill for edit mode; ignored in create mode. */
   initialValues?: RoundFormValues;
+  /** When set, this new round is linked to a scheduled event (the "mark played →
+   * log the round" handoff). Rides along as a hidden field to the create action. */
+  eventId?: string;
+  /** Create-mode field prefill (e.g. the linked event's date and course). */
+  prefill?: Partial<RoundFormValues>;
+  /** The linked event's name, shown as a banner so the context is visible. */
+  eventName?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
@@ -97,7 +107,7 @@ export function RoundForm({
   const form = useForm<RoundFormValues>({
     // The shared schema validates on the client here and again in the action.
     resolver: zodResolver(roundSchema) as Resolver<RoundFormValues>,
-    defaultValues: initialValues ?? createDefaults(),
+    defaultValues: initialValues ?? { ...createDefaults(), ...(prefill ?? {}) },
     mode: "onBlur",
   });
 
@@ -172,6 +182,8 @@ export function RoundForm({
     setIf("notes", values.notes);
 
     if (mode === "edit" && roundId) fd.set("id", roundId);
+    // Link this new round to the scheduled event it was logged from, if any.
+    if (mode === "create" && eventId) fd.set("event_id", eventId);
 
     startTransition(async () => {
       const result =
@@ -197,6 +209,17 @@ export function RoundForm({
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       {formError ? <FormAlert tone="error">{formError}</FormAlert> : null}
+
+      {mode === "create" && eventName ? (
+        <p
+          className="rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+          role="status"
+        >
+          Logging your round for{" "}
+          <span className="font-medium text-foreground">{eventName}</span>. Fill
+          in your score below.
+        </p>
+      ) : null}
 
       {/* --- Required core ------------------------------------------------- */}
       <div className="flex flex-col gap-4">
