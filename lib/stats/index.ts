@@ -27,10 +27,13 @@ export { gapDays, longestGap, seasonFeeTotal } from "./events";
 
 export { minutesByType, practiceRatio } from "./practice";
 
+export { lessonSpendCents, outstandingHomework } from "./lessons";
+
 export { SESSION_TYPES } from "./types";
 export type {
   RoundRow,
   EventRow,
+  LessonRow,
   PracticeSegmentRow,
   PracticeSessionRow,
   SessionType,

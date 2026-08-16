@@ -326,7 +326,16 @@ begin
        'Chunked chips almost gone. Still bailing on the longer pitches.'),
     (v_athlete, 'Coach Diaz', '2026-03-12', 'Putter face square at impact',
        'Gate drill from 4 ft, 20 makes', 'Every practice for 3 weeks', 'yes', 9000,
-       'Three-putts down to two a round. Speed is the last piece.');
+       'Three-putts down to two a round. Speed is the last piece.'),
+    -- The most recent lesson, and the only one still carrying homework. Its
+    -- status is deliberately NULL — "not answered yet", which is a different fact
+    -- from "no" — so the dashboard's outstanding-homework card has something real
+    -- to show, and the difference between the two states is exercised end to end.
+    -- The 2026-04-23 practice session ("Started the tee-ball routine") is the
+    -- athlete beginning this drill two days later.
+    (v_athlete, 'Coach Diaz', '2026-04-21', 'Same tee-ball routine every time',
+       'Three-step routine behind the ball, then commit', 'Every tee shot for 4 rounds', null, 9000,
+       'Nothing swing-wise. This one is all pre-shot — the misses are decisions, not mechanics.');
 
   -- ========================================================================
   -- Strength program — three blocks with exercise lists
